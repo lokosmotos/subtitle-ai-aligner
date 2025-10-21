@@ -1,5 +1,5 @@
 // Configuration - Update this with your Render URL later
-const API_BASE_URL = 'http://localhost:5000'; // Change to your Render URL after deployment
+https://subtitle-ai-backend-f6c3.onrender.com
 
 let currentResults = null;
 
