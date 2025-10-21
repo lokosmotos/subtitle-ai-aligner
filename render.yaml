@@ -3,8 +3,10 @@ services:
     name: subtitle-ai-simple
     env: python
     plan: free
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && python app.py
+    buildCommand: |
+      pip install -r backend/requirements.txt
+    startCommand: |
+      cd backend && python app.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
