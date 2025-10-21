@@ -10,10 +10,22 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend communication
+CORS(app)
 
 # Initialize AI model
 ai_model = SubtitleAI()
+
+@app.route('/')
+def home():
+    return jsonify({
+        "message": "Subtitle AI Aligner API",
+        "status": "running",
+        "endpoints": {
+            "/health": "GET - Health check",
+            "/api/align": "POST - Align subtitles",
+            "/api/generate-srt": "POST - Generate SRT file"
+        }
+    })
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -22,6 +34,10 @@ def health_check():
 @app.route('/api/align', methods=['POST'])
 def align_subtitles():
     try:
+        # Get JSON data
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+            
         data = request.get_json()
         if not data:
             return jsonify({"error": "No JSON data provided"}), 400
@@ -29,10 +45,12 @@ def align_subtitles():
         english_srt = data.get('english_srt', '')
         chinese_srt = data.get('chinese_srt', '')
         
-        if not english_srt or not chinese_srt:
-            return jsonify({"error": "Both English and Chinese SRT content required"}), 400
+        if not english_srt:
+            return jsonify({"error": "English SRT content is required"}), 400
+        if not chinese_srt:
+            return jsonify({"error": "Chinese SRT content is required"}), 400
         
-        logger.info(f"Received SRT content: English {len(english_srt)} chars, Chinese {len(chinese_srt)} chars")
+        logger.info(f"Processing SRT content")
         
         # Parse SRT files
         english_subs = parse_srt(english_srt)
@@ -40,8 +58,10 @@ def align_subtitles():
         
         logger.info(f"Parsed {len(english_subs)} English and {len(chinese_subs)} Chinese subtitles")
         
-        if len(english_subs) == 0 or len(chinese_subs) == 0:
-            return jsonify({"error": "Could not parse subtitles from provided content"}), 400
+        if len(english_subs) == 0:
+            return jsonify({"error": "Could not parse any English subtitles"}), 400
+        if len(chinese_subs) == 0:
+            return jsonify({"error": "Could not parse any Chinese subtitles"}), 400
         
         # Align subtitles using AI
         results = ai_model.align_subtitles(english_subs, chinese_subs)
@@ -65,6 +85,9 @@ def align_subtitles():
 @app.route('/api/generate-srt', methods=['POST'])
 def generate_srt():
     try:
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+            
         data = request.get_json()
         if not data:
             return jsonify({"error": "No JSON data provided"}), 400
@@ -84,9 +107,13 @@ def generate_srt():
                 srt_content.append('')
                 sequence += 1
         
+        if sequence == 1:
+            return jsonify({"error": "No aligned pairs to generate SRT"}), 400
+        
         return jsonify({
             "success": True,
-            "srt_content": "\n".join(srt_content)
+            "srt_content": "\n".join(srt_content),
+            "message": f"Generated SRT with {sequence-1} aligned pairs"
         })
         
     except Exception as e:
@@ -96,16 +123,16 @@ def generate_srt():
 def increment_time(time_str, ms_to_add):
     """Helper function to increment time"""
     try:
-        if ',' in time_str:
-            time_str = time_str.replace(',', '.')
+        # Normalize decimal separator
+        time_str = time_str.replace('.', ',')
         
         parts = time_str.split(':')
         if len(parts) == 3:
             hours = int(parts[0])
             minutes = int(parts[1])
-            seconds_parts = parts[2].split('.')
-            seconds = int(seconds_parts[0])
-            milliseconds = int(seconds_parts[1]) if len(seconds_parts) > 1 else 0
+            time_parts = parts[2].split(',')
+            seconds = int(time_parts[0])
+            milliseconds = int(time_parts[1]) if len(time_parts) > 1 else 0
             
             # Add milliseconds
             milliseconds += ms_to_add
