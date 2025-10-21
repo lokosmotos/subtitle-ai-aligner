@@ -1,1 +1,249 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+header {
+    background: linear-gradient(135deg, #2c3e50, #34495e);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+
+header p {
+    font-size: 1.2em;
+    opacity: 0.9;
+}
+
+.upload-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    padding: 30px;
+    background: #f8f9fa;
+}
+
+.file-upload {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.file-upload h3 {
+    margin-bottom: 15px;
+    color: #2c3e50;
+}
+
+textarea {
+    width: 100%;
+    height: 200px;
+    padding: 15px;
+    border: 2px dashed #bdc3c7;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    resize: vertical;
+    transition: border-color 0.3s;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+small {
+    color: #7f8c8d;
+    font-size: 0.9em;
+}
+
+.actions {
+    padding: 20px 30px;
+    background: white;
+    border-top: 1px solid #ecf0f1;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+button {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+#align-btn {
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    color: white;
+}
+
+#align-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+}
+
+#download-btn {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    opacity: 0.6;
+}
+
+#download-btn:enabled {
+    opacity: 1;
+}
+
+#download-btn:enabled:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    background: white;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 2s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.results {
+    padding: 30px;
+    background: white;
+}
+
+.summary {
+    background: #ecf0f1;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.summary-item {
+    text-align: center;
+    padding: 15px;
+    border-radius: 6px;
+    color: white;
+    font-weight: bold;
+}
+
+.summary-total { background: #3498db; }
+.summary-aligned { background: #27ae60; }
+.summary-review { background: #f39c12; }
+.summary-misaligned { background: #e74c3c; }
+
+.results-table-container {
+    overflow-x: auto;
+    border: 1px solid #bdc3c7;
+    border-radius: 8px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+th {
+    background: #34495e;
+    color: white;
+    font-weight: 600;
+}
+
+tr:hover {
+    background: #f8f9fa;
+}
+
+.status-aligned { color: #27ae60; font-weight: bold; }
+.status-review { color: #f39c12; font-weight: bold; }
+.status-misaligned { color: #e74c3c; font-weight: bold; }
+
+.confidence-high { color: #27ae60; }
+.confidence-medium { color: #f39c12; }
+.confidence-low { color: #e74c3c; }
+
+.error {
+    background: #e74c3c;
+    color: white;
+    padding: 20px;
+    margin: 20px 30px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .upload-section {
+        grid-template-columns: 1fr;
+    }
+    
+    .summary {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .actions {
+        flex-direction: column;
+    }
+    
+    table {
+        font-size: 14px;
+    }
+    
+    th, td {
+        padding: 8px 10px;
+    }
+}
