@@ -1,23 +1,10 @@
 services:
   - type: web
-    name: subtitle-ai-backend
+    name: subtitle-ai-simple
     env: python
     plan: free
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r backend/requirements.txt
-    startCommand: cd backend && gunicorn --bind 0.0.0.0:$PORT app:app
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
-
-  - type: web
-    name: subtitle-ai-frontend
-    env: static
-    buildCommand: |
-      echo "Building frontend..."
-    staticPublishPath: ./frontend
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
