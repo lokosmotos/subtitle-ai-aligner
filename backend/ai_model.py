@@ -61,7 +61,7 @@ class SubtitleAI:
             'money': ['钱', '金钱', '货币', '资金'],
             'work': ['工作', '干活', '做事', '职业'],
             'life': ['生活', '生命', '人生', '生存'],
-            'death': ['死亡', '死', '去世', '逝世']
+            'death': ['死亡', '死', '去世', '逝世'],
             'children': ['孩子', '儿童', '小朋友'],
             'learning': ['学', '学习', '学到'],
             'dear': ['亲爱的', '亲爱'],
@@ -92,7 +92,9 @@ class SubtitleAI:
             'camel': ['骆驼', '驼队', '商队'],
             'culture': ['文化', '文明', '文艺'],
             'chaotic': ['混乱', '杂乱', '混沌'],
-                    }
+                   
+        }
+        
         
         # Semantic meaning groups
         self.semantic_groups = {
