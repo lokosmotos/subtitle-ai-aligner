@@ -130,7 +130,23 @@ class SubtitleAI:
                 "english": ["i disagree", "that's wrong", "no way", "not true", "incorrect"],
                 "chinese": ["我不同意", "不對", "不可能", "不是真的", "錯誤"],
                 "confidence": 0.9
-            }
+
+            "simple_questions": {
+                "english": ["why is that", "what is that", "how come", "what's that"],
+                "chinese": ["為什麼", "那是什麼", "怎麼回事", "什麼東西"],
+                "confidence": 0.95
+            },
+            "comparisons": {
+                "english": ["better than", "worse than", "bigger than", "more than"],
+                "chinese": ["比...好", "比...差", "比...大", "比...多"],
+                "confidence": 0.85
+            },
+            "negations": {
+                "english": ["no", "not", "don't", "cannot", "won't"],
+                "chinese": ["不", "不是", "不要", "不能", "不会"],
+                "confidence": 0.9
+            }    
+        
         }
 
     def time_to_seconds(self, time_str):
