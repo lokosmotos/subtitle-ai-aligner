@@ -3,8 +3,10 @@ services:
     name: subtitle-ai-backend
     env: python
     plan: free
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && gunicorn app:app
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn --bind 0.0.0.0:$PORT app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
@@ -14,7 +16,6 @@ services:
     env: static
     buildCommand: |
       echo "Building frontend..."
-      # You can add build steps here if using React/Vue later
     staticPublishPath: ./frontend
     routes:
       - type: rewrite
