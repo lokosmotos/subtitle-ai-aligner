@@ -1,5 +1,5 @@
 // Configuration - Update this with your Render URL later
-https://subtitle-ai-backend-f6c3.onrender.com
+https://subtitle-ai-backend-f6c3.onrender.com/
 
 let currentResults = null;
 
