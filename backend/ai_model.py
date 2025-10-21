@@ -62,6 +62,13 @@ class SubtitleAI:
             'work': ['工作', '干活', '做事', '职业'],
             'life': ['生活', '生命', '人生', '生存'],
             'death': ['死亡', '死', '去世', '逝世']
+            'children': ['孩子', '儿童', '小朋友'],
+            'learning': ['学', '学习', '学到'],
+            'dear': ['亲爱的', '亲爱'],
+            'unclear': ['不确定', '不清楚', '不明'],
+            'aladdin': ['阿拉丁'],
+            'princess': ['公主'],
+            'story': ['故事', '说说', '讲述'],
         }
         
         # Semantic meaning groups
