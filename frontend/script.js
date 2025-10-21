@@ -1,5 +1,5 @@
 // Configuration - Update this with your Render URL later
-const API_BASE_URL = 'https://subtitle-ai-backend-f6c3.onrender.com
+const API_BASE_URL = 'https://subtitle-ai-backend-f6c3.onrender.com';
 
 let currentResults = null;
 
