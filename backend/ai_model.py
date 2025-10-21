@@ -61,40 +61,27 @@ class SubtitleAI:
             'money': ['钱', '金钱', '货币', '资金'],
             'work': ['工作', '干活', '做事', '职业'],
             'life': ['生活', '生命', '人生', '生存'],
-            'death': ['死亡', '死', '去世', '逝世'],
-            'children': ['孩子', '儿童', '小朋友'],
-            'learning': ['学', '学习', '学到'],
+            'death': ['死亡', '死', '去世', '逝世'],  # ADDED COMMA HERE
+            'children': ['孩子', '儿童', '小朋友', '孩子们'],
+            'learning': ['学', '学习', '学到', '学会'],
             'dear': ['亲爱的', '亲爱'],
-            'unclear': ['不确定', '不清楚', '不明'],
+            'unclear': ['不确定', '不清楚', '不明', '模糊'],
             'aladdin': ['阿拉丁'],
-            'princess': ['公主'],
-            'story': ['故事', '说说', '讲述'],
-            'ship': ['船', '帆船', '船只', '船舶', '舰船'],
-            'big': ['大', '巨大', '很大', '大的', '庞大'],
-            'why': ['为什么', '為何', '为啥', '为何', '何故'],
-            'because': ['因为', '由於', '所以', '原因是'],
+            'princess': ['公主', '王妃', '王女'],
+            'story': ['故事', '说说', '讲述', '讲故事'],
             'better': ['更好', '比较好', '更佳', '更好些'],
             'new': ['新', '新的', '新款', '新型'],
             'storm': ['暴風雨', '风暴', '暴雨', '狂风暴雨'],
             'wood': ['木頭', '木头', '木材', '木料'],
             'rat': ['老鼠', '耗子', '鼠类'],
-            'children': ['孩子', '儿童', '小朋友', '孩子们'],
-            'learning': ['学', '学习', '学到', '学会'],
-            'unclear': ['不确定', '不清楚', '不明', '模糊'],
             'sing': ['唱', '唱歌', '演唱', '歌唱'],
             'tired': ['累', '疲劳', '疲倦', '疲惫'],
-            'magic': ['神', '魔', '魔法', '神奇', '魔术'],
-            'lamp': ['燈', '灯', '灯笼', '油灯'],
-            'story': ['故事', '说说', '讲述', '讲故事'],
-            'princess': ['公主', '王妃', '王女'],
             'imagine': ['想象', '想像', '设想'],
             'faraway': ['遥远', '远方', '偏远'],
             'camel': ['骆驼', '驼队', '商队'],
             'culture': ['文化', '文明', '文艺'],
             'chaotic': ['混乱', '杂乱', '混沌'],
-                   
         }
-        
         
         # Semantic meaning groups
         self.semantic_groups = {
@@ -132,7 +119,7 @@ class SubtitleAI:
                 "english": ["i disagree", "that's wrong", "no way", "not true", "incorrect"],
                 "chinese": ["我不同意", "不對", "不可能", "不是真的", "錯誤"],
                 "confidence": 0.9
-
+            },  # ADDED COMMA HERE
             "simple_questions": {
                 "english": ["why is that", "what is that", "how come", "what's that"],
                 "chinese": ["為什麼", "那是什麼", "怎麼回事", "什麼東西"],
@@ -147,8 +134,7 @@ class SubtitleAI:
                 "english": ["no", "not", "don't", "cannot", "won't"],
                 "chinese": ["不", "不是", "不要", "不能", "不会"],
                 "confidence": 0.9
-            }    
-        
+            }
         }
 
     def time_to_seconds(self, time_str):
