@@ -55,13 +55,13 @@ class SubtitleAI:
             'woman': ['女人', '女子', '女士', '女性'],
             'child': ['孩子', '儿童', '小孩', '小朋友'],
             'friend': ['朋友', '友人', '好友', '伙伴'],
-            'family': ['家庭', '家人', '家属', '亲人'],
+            'family': ['家庭', '家人', '家属', '亲人', '家规', '家风'],
             'home': ['家', '家庭', '家园', '家里'],
-            'food': ['食物', '食品', '吃的', '饭菜'],
+            'food': ['食物', '食品', '吃的', '饭菜', '温饱'],
             'money': ['钱', '金钱', '货币', '资金'],
             'work': ['工作', '干活', '做事', '职业'],
-            'life': ['生活', '生命', '人生', '生存'],
-            'death': ['死亡', '死', '去世', '逝世'],  # ADDED COMMA HERE
+            'life': ['生活', '生命', '人生', '生存', '性命'],
+            'death': ['死亡', '死', '去世', '逝世'],
             'children': ['孩子', '儿童', '小朋友', '孩子们'],
             'learning': ['学', '学习', '学到', '学会'],
             'dear': ['亲爱的', '亲爱'],
@@ -81,15 +81,13 @@ class SubtitleAI:
             'camel': ['骆驼', '驼队', '商队'],
             'culture': ['文化', '文明', '文艺'],
             'chaotic': ['混乱', '杂乱', '混沌'],
-            'family': ['家庭', '家人', '家规', '家风'],
+            # NEW PHRASES FOR FAMILY/TEEN CONTENT
             'rule': ['规则', '规定', '规矩', '家规'],
             'honor': ['孝顺', '尊敬', '尊重', '孝敬'],
             'parents': ['父母', '爸妈', '双亲', '家长'],
             'supreme': ['无上', '至尊', '至高', '最高'],
-            'life': ['生命', '人生', '生活', '性命'],
             'sacrifice': ['牺牲', '奉献', '付出', '牺牲奉献'],
             'roof': ['屋顶', '房子', '家', '住所'],
-            'food': ['食物', '吃的', '温饱', '饭菜'],
             'problem': ['问题', '麻烦', '难题', '困难'],
             'lucky': ['幸运', '幸好', '幸亏', '好运'],
             'grown-up': ['成人', '大人', '成年人', '长大'],
@@ -98,6 +96,10 @@ class SubtitleAI:
             'moves': ['决定', '行动', '举动', '决策'],
             'spontaneous': ['自发', '即兴', '突然', '一时兴起'],
             'cartwheel': ['侧手翻', '翻筋斗', '空翻'],
+            'number one': ['第一', '最重要', '首要', '头号'],
+            'careful': ['小心', '注意', '当心', '谨慎'],
+            'forget': ['忘记', '忘了', '遗忘'],
+            'yourself': ['自己', '自身', '本人'],
         }
         
         # Semantic meaning groups
@@ -136,7 +138,7 @@ class SubtitleAI:
                 "english": ["i disagree", "that's wrong", "no way", "not true", "incorrect"],
                 "chinese": ["我不同意", "不對", "不可能", "不是真的", "錯誤"],
                 "confidence": 0.9
-            },  # ADDED COMMA HERE
+            },
             "simple_questions": {
                 "english": ["why is that", "what is that", "how come", "what's that"],
                 "chinese": ["為什麼", "那是什麼", "怎麼回事", "什麼東西"],
@@ -151,27 +153,38 @@ class SubtitleAI:
                 "english": ["no", "not", "don't", "cannot", "won't"],
                 "chinese": ["不", "不是", "不要", "不能", "不会"],
                 "confidence": 0.9
+            },
+            # NEW SEMANTIC GROUPS FOR FAMILY/TEEN CONTENT
             "family_rules": {
-                "english": ["honor your parents", "family rule", "respect parents", "obey parents"],
-                "chinese": ["孝顺父母", "尊敬父母", "家规", "孝敬"],
+                "english": ["honor your parents", "family rule", "respect parents", "obey parents", "number one rule"],
+                "chinese": ["孝顺父母", "尊敬父母", "家规", "孝敬", "最重要的家规"],
                 "confidence": 0.95
             },
             "parent_sacrifice": {
-                "english": ["sacrificed so much", "gave you life", "put roof over your head", "food on your plate"],
-                "chinese": ["牺牲奉献", "赋予你生命", "给你一个家", "给你温饱"],
+                "english": ["sacrificed so much", "gave you life", "put roof over your head", "food on your plate", "sweated and sacrificed"],
+                "chinese": ["牺牲奉献", "赋予你生命", "给你一个家", "给你温饱", "付出很多"],
                 "confidence": 0.9
             },
             "teen_independence": {
-                "english": ["doing my own thing", "making my own moves", "wear what i want", "say what i want"],
-                "chinese": ["做自己", "自己决定", "穿我想穿", "说我想说"],
+                "english": ["doing my own thing", "making my own moves", "wear what i want", "say what i want", "turned 13", "grown-up"],
+                "chinese": ["做自己", "自己决定", "穿我想穿", "说我想说", "满13岁", "成人"],
                 "confidence": 0.85
             },
             "self_honor": {
-                "english": ["honor yourself", "respect yourself", "forget yourself"],
-                "chinese": ["尊重自己", "忘了自己", "自尊"],
+                "english": ["honor yourself", "respect yourself", "forget yourself", "your own thing"],
+                "chinese": ["尊重自己", "忘了自己", "自尊", "做自己"],
+                "confidence": 0.9
+            },
+            "bragging": {
+                "english": ["not to brag", "bragging", "showing off", "proud"],
+                "chinese": ["不是我臭屁", "臭屁", "炫耀", "自豪"],
+                "confidence": 0.95
+            },
+            "problems": {
+                "english": ["don't have that problem", "no problem", "lucky", "fortunately"],
+                "chinese": ["没有这个问题", "没问题", "幸运", "幸好"],
                 "confidence": 0.9
             }
-            
         }
 
     def time_to_seconds(self, time_str):
@@ -200,7 +213,7 @@ class SubtitleAI:
         eng_time = self.time_to_seconds(eng_sub['start'])
         chi_time = self.time_to_seconds(chi_sub['start'])
         time_diff = abs(eng_time - chi_time)
-        timing_score = max(0, 1 - (time_diff / 5))  # 5 second window
+        timing_score = max(0, 1 - (timeDiff / 5))  # 5 second window
         score += timing_score * 0.5
         
         # 2. Content similarity (50% weight)
@@ -231,7 +244,7 @@ class SubtitleAI:
         if not text:
             return ""
             
-        # Remove speaker names (OMAR: )
+        # Remove speaker names (GIRL: )
         text = re.sub(r'^[A-Z]+:\s*', '', text)
         # Remove sound effects in parentheses
         text = re.sub(r'\([^)]*\)', '', text)
@@ -239,6 +252,8 @@ class SubtitleAI:
         text = re.sub(r'♪', '', text)
         # Remove anything in brackets
         text = re.sub(r'\[[^\]]*\]', '', text)
+        # Remove HTML tags
+        text = re.sub(r'<i>|</i>', '', text)
         # Remove extra spaces
         text = re.sub(r'\s+', ' ', text)
         return text.strip()
