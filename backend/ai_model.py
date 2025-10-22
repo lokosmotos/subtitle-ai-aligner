@@ -213,7 +213,7 @@ class SubtitleAI:
         eng_time = self.time_to_seconds(eng_sub['start'])
         chi_time = self.time_to_seconds(chi_sub['start'])
         time_diff = abs(eng_time - chi_time)
-        timing_score = max(0, 1 - (timeDiff / 5))  # 5 second window
+        timing_score = max(0, 1 - (time_diff / 5))  # 5 second window
         score += timing_score * 0.5
         
         # 2. Content similarity (50% weight)
