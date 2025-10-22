@@ -1,30 +1,32 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from srt_parser import parse_srt
-from ai_model import SubtitleAI
+from ai_model import SmartSubtitleAI
 import os
+import json
 
 app = Flask(__name__)
 CORS(app)
 
-# Initialize AI model
-ai_model = SubtitleAI()
+# Initialize SMART AI model
+ai_model = SmartSubtitleAI()
 
 @app.route('/')
 def home():
     return jsonify({
-        "message": "Subtitle AI Aligner API",
+        "message": "Smart Subtitle AI Aligner API",
         "status": "running",
-        "endpoints": {
-            "/health": "GET - Health check",
-            "/api/align": "POST - Align subtitles", 
-            "/api/generate-srt": "POST - Generate SRT file"
-        }
+        "features": [
+            "Semantic matching with multilingual BERT",
+            "Context-aware alignment",
+            "Adaptive confidence scoring",
+            "Learning from user feedback"
+        ]
     })
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({"status": "healthy", "message": "Subtitle AI Aligner is running"})
+    return jsonify({"status": "healthy", "message": "Smart AI Subtitle Aligner is running"})
 
 @app.route('/api/align', methods=['POST'])
 def align_subtitles():
@@ -53,7 +55,7 @@ def align_subtitles():
         if len(chinese_subs) == 0:
             return jsonify({"error": "Could not parse any Chinese subtitles"}), 400
         
-        # Align subtitles using AI
+        # Smart alignment with AI
         results = ai_model.align_subtitles(english_subs, chinese_subs)
         
         return jsonify({
@@ -64,12 +66,33 @@ def align_subtitles():
                 "total_chinese": len(chinese_subs),
                 "aligned": len([r for r in results if r['status'] == 'ALIGNED']),
                 "needs_review": len([r for r in results if r['status'] == 'REVIEW']),
-                "misaligned": len([r for r in results if r['status'] == 'MISALIGNED'])
+                "misaligned": len([r for r in results if r['status'] == 'MISALIGNED']),
+                "ai_model": "multilingual-bert-semantic"
             }
         })
         
     except Exception as e:
         return jsonify({"error": f"Alignment failed: {str(e)}"}), 500
+
+@app.route('/api/learn', methods=['POST'])
+def learn_from_feedback():
+    """Endpoint for AI learning from user corrections"""
+    try:
+        data = request.get_json()
+        english_text = data.get('english_text', '')
+        chinese_text = data.get('chinese_text', '')
+        was_correct = data.get('was_correct', False)
+        
+        ai_model.learn_from_feedback(english_text, chinese_text, was_correct)
+        
+        return jsonify({
+            "success": True,
+            "message": "AI learned from feedback",
+            "learned_pairs_count": len(ai_model.learned_pairs)
+        })
+        
+    except Exception as e:
+        return jsonify({"error": f"Learning failed: {str(e)}"}), 500
 
 @app.route('/api/generate-srt', methods=['POST'])
 def generate_srt():
