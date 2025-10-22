@@ -3,11 +3,6 @@ from flask_cors import CORS
 from srt_parser import parse_srt
 from ai_model import SubtitleAI
 import os
-import logging
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
@@ -22,7 +17,7 @@ def home():
         "status": "running",
         "endpoints": {
             "/health": "GET - Health check",
-            "/api/align": "POST - Align subtitles",
+            "/api/align": "POST - Align subtitles", 
             "/api/generate-srt": "POST - Generate SRT file"
         }
     })
@@ -34,7 +29,6 @@ def health_check():
 @app.route('/api/align', methods=['POST'])
 def align_subtitles():
     try:
-        # Get JSON data
         if not request.is_json:
             return jsonify({"error": "Request must be JSON"}), 400
             
@@ -50,13 +44,9 @@ def align_subtitles():
         if not chinese_srt:
             return jsonify({"error": "Chinese SRT content is required"}), 400
         
-        logger.info(f"Processing SRT content")
-        
         # Parse SRT files
         english_subs = parse_srt(english_srt)
         chinese_subs = parse_srt(chinese_srt)
-        
-        logger.info(f"Parsed {len(english_subs)} English and {len(chinese_subs)} Chinese subtitles")
         
         if len(english_subs) == 0:
             return jsonify({"error": "Could not parse any English subtitles"}), 400
@@ -79,7 +69,6 @@ def align_subtitles():
         })
         
     except Exception as e:
-        logger.error(f"Alignment error: {str(e)}")
         return jsonify({"error": f"Alignment failed: {str(e)}"}), 500
 
 @app.route('/api/generate-srt', methods=['POST'])
@@ -98,7 +87,7 @@ def generate_srt():
         sequence = 1
         
         for pair in aligned_pairs:
-            if pair['status'] == 'ALIGNED' and pair['chinese'] != 'NO MATCH':
+            if pair['status'] != 'MISALIGNED' and pair['chinese'] != 'NO MATCH':
                 # Chinese on top, English on bottom
                 srt_content.append(str(sequence))
                 srt_content.append(f"{pair['eng_time']} --> {increment_time(pair['eng_time'], 3000)}")
@@ -117,13 +106,11 @@ def generate_srt():
         })
         
     except Exception as e:
-        logger.error(f"SRT generation error: {str(e)}")
         return jsonify({"error": f"SRT generation failed: {str(e)}"}), 500
 
 def increment_time(time_str, ms_to_add):
     """Helper function to increment time"""
     try:
-        # Normalize decimal separator
         time_str = time_str.replace('.', ',')
         
         parts = time_str.split(':')
@@ -156,10 +143,3 @@ def increment_time(time_str, ms_to_add):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-# Add this at the very end of the file
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    # Use production-ready server
-    from waitress import serve
-    serve(app, host='0.0.0.0', port=port)
