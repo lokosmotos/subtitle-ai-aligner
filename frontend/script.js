@@ -1,7 +1,21 @@
-// Configuration - Update this with your Render URL later
-const API_BASE_URL = 'https://subtitle-ai-backend-f6c3.onrender.com';
+const API_BASE_URL = 'https://your-backend-url.onrender.com';
 
-let currentResults = null;
+// Color-coded confidence display
+function getConfidenceColor(confidence) {
+    if (confidence > 0.8) return '#10b981'; // Green
+    if (confidence > 0.6) return '#f59e0b'; // Yellow
+    if (confidence > 0.4) return '#f97316'; // Orange
+    return '#ef4444'; // Red
+}
+
+function getStatusIcon(status) {
+    const icons = {
+        'ALIGNED': '✅',
+        'REVIEW': '⚠️', 
+        'MISALIGNED': '❌'
+    };
+    return icons[status] || '🔍';
+}
 
 async function alignSubtitles() {
     const englishSRT = document.getElementById('english-srt').value.trim();
@@ -13,79 +27,94 @@ async function alignSubtitles() {
     }
     
     showLoading();
-    hideError();
-    hideResults();
     
     try {
         const response = await fetch(`${API_BASE_URL}/api/align`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                english_srt: englishSRT,
-                chinese_srt: chineseSRT
-            })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({english_srt: englishSRT, chinese_srt: chineseSRT})
         });
         
         const data = await response.json();
         
-        if (!response.ok) {
-            throw new Error(data.error || 'Alignment failed');
+        if (data.success) {
+            displaySmartResults(data);
+            enableDownload();
+        } else {
+            showError(data.error);
         }
-        
-        currentResults = data;
-        displayResults(data);
-        enableDownload();
-        
     } catch (error) {
-        showError(error.message);
+        showError('Network error: ' + error.message);
     } finally {
         hideLoading();
     }
 }
 
-function displayResults(data) {
+function displaySmartResults(data) {
     const resultsDiv = document.getElementById('results');
     const summaryDiv = document.getElementById('summary');
     const resultsBody = document.getElementById('results-body');
     
-    // Display summary
+    // Smart summary
+    const alignedCount = data.summary.aligned;
+    const totalCount = data.summary.total_english;
+    const accuracy = ((alignedCount / totalCount) * 100).toFixed(1);
+    
     summaryDiv.innerHTML = `
-        <div class="summary-item summary-total">
-            <div>Total English</div>
-            <div>${data.summary.total_english}</div>
-        </div>
-        <div class="summary-item summary-aligned">
-            <div>Aligned</div>
-            <div>${data.summary.aligned}</div>
-        </div>
-        <div class="summary-item summary-review">
-            <div>Needs Review</div>
-            <div>${data.summary.needs_review}</div>
-        </div>
-        <div class="summary-item summary-misaligned">
-            <div>Misaligned</div>
-            <div>${data.summary.misaligned}</div>
+        <div class="smart-summary">
+            <h3>🧠 AI Analysis Complete</h3>
+            <div class="metrics">
+                <div class="metric">
+                    <span class="value">${accuracy}%</span>
+                    <span class="label">Alignment Accuracy</span>
+                </div>
+                <div class="metric">
+                    <span class="value">${data.summary.aligned}</span>
+                    <span class="label">High Confidence</span>
+                </div>
+                <div class="metric">
+                    <span class="value">${data.summary.needs_review}</span>
+                    <span class="label">Needs Review</span>
+                </div>
+                <div class="metric">
+                    <span class="value">${data.summary.misaligned}</span>
+                    <span class="label">Misaligned</span>
+                </div>
+            </div>
+            <div class="ai-info">
+                <small>Powered by Multilingual BERT • Semantic Matching • Context-Aware</small>
+            </div>
         </div>
     `;
     
-    // Display results table
+    // Smart results table
     resultsBody.innerHTML = '';
     data.results.forEach(result => {
         const row = document.createElement('tr');
-        
-        const confidenceClass = result.confidence > 0.7 ? 'confidence-high' : 
-                              result.confidence > 0.4 ? 'confidence-medium' : 'confidence-low';
+        const confidenceColor = getConfidenceColor(result.confidence);
+        const statusIcon = getStatusIcon(result.status);
         
         row.innerHTML = `
             <td>${result.sequence}</td>
             <td>${result.eng_time}</td>
             <td>${result.chi_time}</td>
-            <td>${escapeHtml(result.english)}</td>
-            <td>${escapeHtml(result.chinese)}</td>
-            <td class="${confidenceClass}">${Math.round(result.confidence * 100)}%</td>
-            <td class="status-${result.status.toLowerCase()}">${result.status}</td>
+            <td class="text-content">${escapeHtml(result.english)}</td>
+            <td class="text-content">${escapeHtml(result.chinese)}</td>
+            <td style="color: ${confidenceColor}; font-weight: bold">
+                ${(result.confidence * 100).toFixed(1)}%
+            </td>
+            <td>
+                <span class="status-badge status-${result.status.toLowerCase()}">
+                    ${statusIcon} ${result.status}
+                </span>
+            </td>
+            <td class="match-quality">${result.match_quality}</td>
+            <td>
+                <button onclick="provideFeedback('${escapeHtml(result.english)}', '${escapeHtml(result.chinese)}', true)" 
+                        class="btn-success" title="Mark as correct">✓</button>
+                <button onclick="provideFeedback('${escapeHtml(result.english)}', '${escapeHtml(result.chinese)}', false)" 
+                        class="btn-danger" title="Mark as incorrect">✗</button>
+            </td>
         `;
         
         resultsBody.appendChild(row);
@@ -94,84 +123,25 @@ function displayResults(data) {
     showResults();
 }
 
-async function downloadSRT() {
-    if (!currentResults) return;
-    
+async function provideFeedback(englishText, chineseText, isCorrect) {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/generate-srt`, {
+        const response = await fetch(`${API_BASE_URL}/api/learn`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                aligned_pairs: currentResults.results
+                english_text: englishText,
+                chinese_text: chineseText,
+                was_correct: isCorrect
             })
         });
         
         const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || 'SRT generation failed');
+        if (data.success) {
+            showMessage('✅ Feedback recorded - AI is learning!', 'success');
         }
-        
-        // Create and download SRT file
-        const blob = new Blob([data.srt_content], { type: 'text/plain' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'aligned_subtitles.srt';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
     } catch (error) {
-        showError('Failed to download SRT: ' + error.message);
+        showMessage('❌ Failed to send feedback', 'error');
     }
 }
 
-// Utility functions
-function showLoading() {
-    document.getElementById('loading').classList.remove('hidden');
-}
-
-function hideLoading() {
-    document.getElementById('loading').classList.add('hidden');
-}
-
-function showResults() {
-    document.getElementById('results').classList.remove('hidden');
-}
-
-function hideResults() {
-    document.getElementById('results').classList.add('hidden');
-}
-
-function showError(message) {
-    const errorDiv = document.getElementById('error');
-    const errorMessage = document.getElementById('error-message');
-    errorMessage.textContent = message;
-    errorDiv.classList.remove('hidden');
-}
-
-function hideError() {
-    document.getElementById('error').classList.add('hidden');
-}
-
-function enableDownload() {
-    document.getElementById('download-btn').disabled = false;
-}
-
-function escapeHtml(unsafe) {
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-// Initialize the app
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('AI Subtitle Aligner loaded');
-});
+// ... (rest of your existing frontend code)
