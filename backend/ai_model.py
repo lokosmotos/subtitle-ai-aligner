@@ -316,36 +316,41 @@ class SubtitleAI:
         return min(1.0, score)
 
     def align_subtitles(self, english_subs, chinese_subs):
-        """Align English and Chinese subtitles"""
-        aligned_pairs = []
+    """Simple exact 1:1 matching - uses your subtitle order"""
+    aligned_pairs = []
+    
+    # Match exactly by sequence order
+    for i in range(min(len(english_subs), len(chinese_subs))):
+        eng_sub = english_subs[i]
+        chi_sub = chinese_subs[i]
         
-        for eng_sub in english_subs:
-            best_match = None
-            best_score = 0
-            
-            for chi_sub in chinese_subs:
-                score = self.calculate_match_score(eng_sub, chi_sub)
-                if score > best_score:
-                    best_score = score
-                    best_match = chi_sub
-            
-            # Determine status based on confidence
-            if best_score > 0.7:
-                status = 'ALIGNED'
-            elif best_score > 0.4:
-                status = 'REVIEW'
-            else:
-                status = 'MISALIGNED'
-                best_match = None
-            
+        # Calculate timing confidence only
+        eng_time = self.time_to_seconds(eng_sub['start'])
+        chi_time = self.time_to_seconds(chi_sub['start'])
+        time_diff = abs(eng_time - chi_time)
+        confidence = max(0, 1 - (time_diff / 10))
+        
+        aligned_pairs.append({
+            'sequence': eng_sub['id'],
+            'eng_time': eng_sub['start'],
+            'chi_time': chi_sub['start'],
+            'english': eng_sub['text'],
+            'chinese': chi_sub['text'],
+            'confidence': round(confidence, 2),
+            'status': 'ALIGNED' if confidence > 0.3 else 'REVIEW'
+        })
+    
+    # Handle any leftovers
+    if len(english_subs) > len(chinese_subs):
+        for i in range(len(chinese_subs), len(english_subs)):
             aligned_pairs.append({
-                'sequence': eng_sub['id'],
-                'eng_time': eng_sub['start'],
-                'chi_time': best_match['start'] if best_match else 'NO MATCH',
-                'english': eng_sub['text'],
-                'chinese': best_match['text'] if best_match else 'NO MATCH',
-                'confidence': round(best_score, 2),
-                'status': status
+                'sequence': english_subs[i]['id'],
+                'eng_time': english_subs[i]['start'],
+                'chi_time': 'NO MATCH',
+                'english': english_subs[i]['text'],
+                'chinese': 'NO MATCH',
+                'confidence': 0,
+                'status': 'MISALIGNED'
             })
-        
-        return aligned_pairs
+    
+    return aligned_pairs
