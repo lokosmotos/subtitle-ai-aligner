@@ -81,6 +81,23 @@ class SubtitleAI:
             'camel': ['骆驼', '驼队', '商队'],
             'culture': ['文化', '文明', '文艺'],
             'chaotic': ['混乱', '杂乱', '混沌'],
+            'family': ['家庭', '家人', '家规', '家风'],
+            'rule': ['规则', '规定', '规矩', '家规'],
+            'honor': ['孝顺', '尊敬', '尊重', '孝敬'],
+            'parents': ['父母', '爸妈', '双亲', '家长'],
+            'supreme': ['无上', '至尊', '至高', '最高'],
+            'life': ['生命', '人生', '生活', '性命'],
+            'sacrifice': ['牺牲', '奉献', '付出', '牺牲奉献'],
+            'roof': ['屋顶', '房子', '家', '住所'],
+            'food': ['食物', '吃的', '温饱', '饭菜'],
+            'problem': ['问题', '麻烦', '难题', '困难'],
+            'lucky': ['幸运', '幸好', '幸亏', '好运'],
+            'grown-up': ['成人', '大人', '成年人', '长大'],
+            'teen': ['青少年', '少年', '十几岁'],
+            'bragging': ['臭屁', '炫耀', '吹牛', '自夸'],
+            'moves': ['决定', '行动', '举动', '决策'],
+            'spontaneous': ['自发', '即兴', '突然', '一时兴起'],
+            'cartwheel': ['侧手翻', '翻筋斗', '空翻'],
         }
         
         # Semantic meaning groups
@@ -134,7 +151,27 @@ class SubtitleAI:
                 "english": ["no", "not", "don't", "cannot", "won't"],
                 "chinese": ["不", "不是", "不要", "不能", "不会"],
                 "confidence": 0.9
+            "family_rules": {
+                "english": ["honor your parents", "family rule", "respect parents", "obey parents"],
+                "chinese": ["孝顺父母", "尊敬父母", "家规", "孝敬"],
+                "confidence": 0.95
+            },
+            "parent_sacrifice": {
+                "english": ["sacrificed so much", "gave you life", "put roof over your head", "food on your plate"],
+                "chinese": ["牺牲奉献", "赋予你生命", "给你一个家", "给你温饱"],
+                "confidence": 0.9
+            },
+            "teen_independence": {
+                "english": ["doing my own thing", "making my own moves", "wear what i want", "say what i want"],
+                "chinese": ["做自己", "自己决定", "穿我想穿", "说我想说"],
+                "confidence": 0.85
+            },
+            "self_honor": {
+                "english": ["honor yourself", "respect yourself", "forget yourself"],
+                "chinese": ["尊重自己", "忘了自己", "自尊"],
+                "confidence": 0.9
             }
+            
         }
 
     def time_to_seconds(self, time_str):
