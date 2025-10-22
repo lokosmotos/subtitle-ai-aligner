@@ -1,197 +1,42 @@
 import re
 import math
+from sentence_transformers import SentenceTransformer, util
+import torch
+import numpy as np
 
-class SubtitleAI:
+class SmartSubtitleAI:
     def __init__(self):
-        # Expanded critical phrase pairs for better matching
-        self.critical_phrases = {
-            'yes': ['是', '对的', '好的', '可以', '没错'],
-            'no': ['不', '不是', '不要', '不行', '没有'],
-            'look': ['看', '瞧', '看看', '看一下', '注视'],
-            'ship': ['船', '帆船', '船只', '船舶', '舰船'],
-            'big': ['大', '巨大', '很大', '大的', '庞大'],
-            'why': ['为什么', '為何', '为啥', '为何', '何故'],
-            'because': ['因为', '由於', '所以', '原因是'],
-            'magic': ['神', '魔', '魔法', '神奇', '魔术'],
-            'lamp': ['燈', '灯', '灯笼', '油灯'],
-            'hello': ['你好', '您好', '嗨', '哈喽'],
-            'thank you': ['谢谢', '感谢', '多谢', '谢谢你'],
-            'sorry': ['对不起', '抱歉', '不好意思'],
-            'okay': ['好', '可以', '行', '没问题', '好吧'],
-            'please': ['请', '拜托', '求你了'],
-            'what': ['什么', '啥', '何事', '干什么'],
-            'where': ['哪里', '哪儿', '何处', '什么地方'],
-            'when': ['什么时候', '何时', '几时'],
-            'how': ['怎么', '如何', '怎样', '怎么样'],
-            'who': ['谁', '何人', '什么人'],
-            'good': ['好', '良好', '不错', '优秀', '棒'],
-            'bad': ['坏', '不好', '糟糕', '差劲'],
-            'happy': ['开心', '高兴', '快乐', '愉快'],
-            'sad': ['伤心', '难过', '悲伤', '悲哀'],
-            'beautiful': ['漂亮', '美丽', '好看', '优美'],
-            'ugly': ['丑', '难看', '丑陋', '丑恶'],
-            'love': ['爱', '喜欢', '爱情', '恋爱'],
-            'hate': ['恨', '讨厌', '厌恶', '憎恨'],
-            'want': ['要', '想要', '需要', '希望'],
-            'have': ['有', '拥有', '具有', '具备'],
-            'can': ['可以', '能', '能够', '会'],
-            'cannot': ['不能', '不可以', '不会', '无法'],
-            'will': ['会', '将要', '愿意', '打算'],
-            'go': ['去', '走', '前往', '出发'],
-            'come': ['来', '过来', '来到', '来临'],
-            'see': ['看见', '看到', '见面', '见到'],
-            'hear': ['听见', '听到', '听闻', '听说'],
-            'say': ['说', '讲', '告诉', '说道'],
-            'think': ['想', '思考', '认为', '觉得'],
-            'know': ['知道', '了解', '认识', '明白'],
-            'time': ['时间', '时候', '时刻', '时光'],
-            'day': ['天', '日', '白天', '日子'],
-            'night': ['晚上', '夜晚', '夜里', '晚间'],
-            'water': ['水', '水分', '水域', '海水'],
-            'fire': ['火', '火焰', '火灾', '火光'],
-            'earth': ['土', '土地', '地球', '大地'],
-            'air': ['空气', '天空', '大气', '空中'],
-            'man': ['男人', '男子', '男士', '男性'],
-            'woman': ['女人', '女子', '女士', '女性'],
-            'child': ['孩子', '儿童', '小孩', '小朋友'],
-            'friend': ['朋友', '友人', '好友', '伙伴'],
-            'family': ['家庭', '家人', '家属', '亲人', '家规', '家风'],
-            'home': ['家', '家庭', '家园', '家里'],
-            'food': ['食物', '食品', '吃的', '饭菜', '温饱'],
-            'money': ['钱', '金钱', '货币', '资金'],
-            'work': ['工作', '干活', '做事', '职业'],
-            'life': ['生活', '生命', '人生', '生存', '性命'],
-            'death': ['死亡', '死', '去世', '逝世'],
-            'children': ['孩子', '儿童', '小朋友', '孩子们'],
-            'learning': ['学', '学习', '学到', '学会'],
-            'dear': ['亲爱的', '亲爱'],
-            'unclear': ['不确定', '不清楚', '不明', '模糊'],
-            'aladdin': ['阿拉丁'],
-            'princess': ['公主', '王妃', '王女'],
-            'story': ['故事', '说说', '讲述', '讲故事'],
-            'better': ['更好', '比较好', '更佳', '更好些'],
-            'new': ['新', '新的', '新款', '新型'],
-            'storm': ['暴風雨', '风暴', '暴雨', '狂风暴雨'],
-            'wood': ['木頭', '木头', '木材', '木料'],
-            'rat': ['老鼠', '耗子', '鼠类'],
-            'sing': ['唱', '唱歌', '演唱', '歌唱'],
-            'tired': ['累', '疲劳', '疲倦', '疲惫'],
-            'imagine': ['想象', '想像', '设想'],
-            'faraway': ['遥远', '远方', '偏远'],
-            'camel': ['骆驼', '驼队', '商队'],
-            'culture': ['文化', '文明', '文艺'],
-            'chaotic': ['混乱', '杂乱', '混沌'],
-            # NEW PHRASES FOR FAMILY/TEEN CONTENT
-            'rule': ['规则', '规定', '规矩', '家规'],
-            'honor': ['孝顺', '尊敬', '尊重', '孝敬'],
-            'parents': ['父母', '爸妈', '双亲', '家长'],
-            'supreme': ['无上', '至尊', '至高', '最高'],
-            'sacrifice': ['牺牲', '奉献', '付出', '牺牲奉献'],
-            'roof': ['屋顶', '房子', '家', '住所'],
-            'problem': ['问题', '麻烦', '难题', '困难'],
-            'lucky': ['幸运', '幸好', '幸亏', '好运'],
-            'grown-up': ['成人', '大人', '成年人', '长大'],
-            'teen': ['青少年', '少年', '十几岁'],
-            'bragging': ['臭屁', '炫耀', '吹牛', '自夸'],
-            'moves': ['决定', '行动', '举动', '决策'],
-            'spontaneous': ['自发', '即兴', '突然', '一时兴起'],
-            'cartwheel': ['侧手翻', '翻筋斗', '空翻'],
-            'number one': ['第一', '最重要', '首要', '头号'],
-            'careful': ['小心', '注意', '当心', '谨慎'],
-            'forget': ['忘记', '忘了', '遗忘'],
-            'yourself': ['自己', '自身', '本人'],
+        # Load multilingual model for English-Chinese semantic matching
+        self.model = SentenceTransformer('distiluse-base-multilingual-cased-v1')
+        
+        # Learning system
+        self.learned_pairs = []
+        self.confidence_thresholds = {
+            'high': 0.8,
+            'medium': 0.5,
+            'low': 0.3
         }
         
-        # Semantic meaning groups
-        self.semantic_groups = {
-            "wish_better": {
-                "english": ["wish ours was that fancy", "i'd be so happy if", "want our ship to be better", "if only ours was", "hope ours was"],
-                "chinese": ["我們的船好破爛", "船如果那麼漂亮就好了", "希望我們的船更好", "要是我們的船也這樣", "真想我們的船也這麼好"],
-                "confidence": 0.9
-            },
-            "question_why": {
-                "english": ["why is that", "because it looks better", "why", "what's the reason", "how come"],
-                "chinese": ["為什麼", "就因為它比較新", "原因是", "為何這樣", "怎麼回事"],
-                "confidence": 0.95
-            },
-            "ship_history": {
-                "english": ["this boat has seen us through many storms", "it has been through storms", "survived many storms", "weather many storms"],
-                "chinese": ["這艘船帶我們渡過很多暴風雨", "經歷過很多風雨", "闖過很多暴風雨", "經歷無數風雨"],
-                "confidence": 0.85
-            },
-            "look_direction": {
-                "english": ["hey look", "over there", "look at that", "check that out", "see there"],
-                "chinese": ["妳看", "看那裡", "快看", "瞧那邊", "看那邊"],
-                "confidence": 0.95
-            },
-            "comparison": {
-                "english": ["better than", "worse than", "bigger than", "smaller than", "more than", "less than"],
-                "chinese": ["比...好", "比...差", "比...大", "比...小", "比...多", "比...少"],
-                "confidence": 0.8
-            },
-            "agreement": {
-                "english": ["i agree", "that's right", "exactly", "you're right", "true"],
-                "chinese": ["我同意", "沒錯", "確實", "你說得對", "是的"],
-                "confidence": 0.9
-            },
-            "disagreement": {
-                "english": ["i disagree", "that's wrong", "no way", "not true", "incorrect"],
-                "chinese": ["我不同意", "不對", "不可能", "不是真的", "錯誤"],
-                "confidence": 0.9
-            },
-            "simple_questions": {
-                "english": ["why is that", "what is that", "how come", "what's that"],
-                "chinese": ["為什麼", "那是什麼", "怎麼回事", "什麼東西"],
-                "confidence": 0.95
-            },
-            "comparisons": {
-                "english": ["better than", "worse than", "bigger than", "more than"],
-                "chinese": ["比...好", "比...差", "比...大", "比...多"],
-                "confidence": 0.85
-            },
-            "negations": {
-                "english": ["no", "not", "don't", "cannot", "won't"],
-                "chinese": ["不", "不是", "不要", "不能", "不会"],
-                "confidence": 0.9
-            },
-            # NEW SEMANTIC GROUPS FOR FAMILY/TEEN CONTENT
-            "family_rules": {
-                "english": ["honor your parents", "family rule", "respect parents", "obey parents", "number one rule"],
-                "chinese": ["孝顺父母", "尊敬父母", "家规", "孝敬", "最重要的家规"],
-                "confidence": 0.95
-            },
-            "parent_sacrifice": {
-                "english": ["sacrificed so much", "gave you life", "put roof over your head", "food on your plate", "sweated and sacrificed"],
-                "chinese": ["牺牲奉献", "赋予你生命", "给你一个家", "给你温饱", "付出很多"],
-                "confidence": 0.9
-            },
-            "teen_independence": {
-                "english": ["doing my own thing", "making my own moves", "wear what i want", "say what i want", "turned 13", "grown-up"],
-                "chinese": ["做自己", "自己决定", "穿我想穿", "说我想说", "满13岁", "成人"],
-                "confidence": 0.85
-            },
-            "self_honor": {
-                "english": ["honor yourself", "respect yourself", "forget yourself", "your own thing"],
-                "chinese": ["尊重自己", "忘了自己", "自尊", "做自己"],
-                "confidence": 0.9
-            },
-            "bragging": {
-                "english": ["not to brag", "bragging", "showing off", "proud"],
-                "chinese": ["不是我臭屁", "臭屁", "炫耀", "自豪"],
-                "confidence": 0.95
-            },
-            "problems": {
-                "english": ["don't have that problem", "no problem", "lucky", "fortunately"],
-                "chinese": ["没有这个问题", "没问题", "幸运", "幸好"],
-                "confidence": 0.9
-            }
+        # Critical phrases as fallback
+        self.critical_phrases = {
+            'yes': ['是', '对的', '好的'],
+            'no': ['不', '不是', '不要'],
+            'look': ['看', '瞧', '看看'],
+            'ship': ['船', '帆船', '船只'],
+            'big': ['大', '巨大', '很大'],
+            'why': ['为什么', '為何', '为啥'],
+            'because': ['因为', '由於', '所以'],
+            'magic': ['神', '魔', '魔法'],
+            'lamp': ['燈', '灯', '灯笼'],
+            'family': ['家庭', '家人', '家规'],
+            'parents': ['父母', '爸妈', '家长'],
+            'honor': ['孝顺', '尊敬', '尊重']
         }
 
     def time_to_seconds(self, time_str):
-        """Convert SRT time to seconds - simple version"""
+        """Convert SRT time to seconds"""
         try:
             time_str = str(time_str)
-            # Handle both , and . as decimal separator
             if ',' in time_str:
                 time_str = time_str.replace(',', '.')
             
@@ -205,61 +50,22 @@ class SubtitleAI:
             pass
         return 0
 
-    def calculate_match_score(self, eng_sub, chi_sub):
-        """Calculate how well English and Chinese subtitles match"""
-        score = 0
-        
-        # 1. Timing similarity (50% weight)
-        eng_time = self.time_to_seconds(eng_sub['start'])
-        chi_time = self.time_to_seconds(chi_sub['start'])
-        time_diff = abs(eng_time - chi_time)
-        timing_score = max(0, 1 - (time_diff / 5))  # 5 second window
-        score += timing_score * 0.5
-        
-        # 2. Content similarity (50% weight)
-        content_score = self.calculate_content_similarity(eng_sub['text'], chi_sub['text'])
-        score += content_score * 0.5
-        
-        return min(1.0, max(0, score))
-
-    def calculate_content_similarity(self, eng_text, chi_text):
-        """Calculate content similarity using rule-based methods"""
-        eng_text_clean = self.clean_text(eng_text)
-        chi_text_clean = chi_text
-        
-        # Method 1: Critical phrase matching (60%)
-        critical_score = self.calculate_critical_score(eng_text_clean, chi_text_clean)
-        
-        # Method 2: Semantic group matching (30%)
-        semantic_score = self.calculate_semantic_score(eng_text_clean, chi_text_clean)
-        
-        # Method 3: Structural similarity (10%)
-        structure_score = self.calculate_structure_score(eng_text_clean, chi_text_clean)
-        
-        # Combine scores
-        return (critical_score * 0.6 + semantic_score * 0.3 + structure_score * 0.1)
-
-    def clean_text(self, text):
-        """Clean text by removing CC markers, speaker names, etc."""
-        if not text:
-            return ""
+    def semantic_similarity(self, eng_text, chi_text):
+        """Calculate semantic similarity using multilingual embeddings"""
+        try:
+            # Encode both texts
+            embeddings = self.model.encode([eng_text, chi_text], convert_to_tensor=True)
             
-        # Remove speaker names (GIRL: )
-        text = re.sub(r'^[A-Z]+:\s*', '', text)
-        # Remove sound effects in parentheses
-        text = re.sub(r'\([^)]*\)', '', text)
-        # Remove music markers
-        text = re.sub(r'♪', '', text)
-        # Remove anything in brackets
-        text = re.sub(r'\[[^\]]*\]', '', text)
-        # Remove HTML tags
-        text = re.sub(r'<i>|</i>', '', text)
-        # Remove extra spaces
-        text = re.sub(r'\s+', ' ', text)
-        return text.strip()
+            # Calculate cosine similarity
+            similarity = util.pytorch_cos_sim(embeddings[0], embeddings[1]).item()
+            
+            return max(0, similarity)  # Ensure non-negative
+        except Exception as e:
+            # Fallback to keyword matching if embedding fails
+            return self.keyword_similarity(eng_text, chi_text)
 
-    def calculate_critical_score(self, eng_text, chi_text):
-        """Score based on critical phrase matches"""
+    def keyword_similarity(self, eng_text, chi_text):
+        """Fallback keyword-based similarity"""
         eng_lower = eng_text.lower()
         matches = 0
         possible = 0
@@ -275,82 +81,149 @@ class SubtitleAI:
         
         return matches / max(possible, 1)
 
-    def calculate_semantic_score(self, eng_text, chi_text):
-        """Score based on semantic group matches"""
-        eng_lower = eng_text.lower()
-        
-        for group_name, group_data in self.semantic_groups.items():
-            has_english = any(phrase in eng_lower for phrase in group_data["english"])
-            has_chinese = any(phrase in chi_text for phrase in group_data["chinese"])
-            
-            if has_english and has_chinese:
-                return group_data["confidence"]
-        
-        return 0.1  # Low score if no semantic match
-
-    def calculate_structure_score(self, eng_text, chi_text):
-        """Score based on structural similarity"""
-        score = 0
-        
-        # Check if both are questions
-        eng_is_question = '?' in eng_text
-        chi_is_question = '？' in chi_text or '?' in chi_text
-        if eng_is_question == chi_is_question:
-            score += 0.3
-        
-        # Check if both are exclamations
-        eng_is_exclamation = '!' in eng_text
-        chi_is_exclamation = '！' in chi_text or '!' in chi_text
-        if eng_is_exclamation == chi_is_exclamation:
-            score += 0.3
-        
-        # Check if both have similar length ratio
-        eng_words = len(eng_text.split())
-        chi_chars = len(chi_text)
-        if eng_words > 0 and chi_chars > 0:
-            # Rough ratio: English words to Chinese characters
-            ratio = eng_words / chi_chars
-            if 0.2 <= ratio <= 0.6:  # Reasonable range
-                score += 0.4
-        
-        return min(1.0, score)
-
-    def align_subtitles(self, english_subs, chinese_subs):
-    """Simple exact 1:1 matching - uses your subtitle order"""
-    aligned_pairs = []
-    
-    # Match exactly by sequence order
-    for i in range(min(len(english_subs), len(chinese_subs))):
-        eng_sub = english_subs[i]
-        chi_sub = chinese_subs[i]
-        
-        # Calculate timing confidence only
+    def combined_scoring(self, eng_sub, chi_sub, semantic_score):
+        """Combine semantic meaning with timing and learned patterns"""
+        # Timing proximity (30% weight)
         eng_time = self.time_to_seconds(eng_sub['start'])
         chi_time = self.time_to_seconds(chi_sub['start'])
         time_diff = abs(eng_time - chi_time)
-        confidence = max(0, 1 - (time_diff / 10))
+        timing_score = max(0, 1 - (time_diff / 5.0))  # 5-second window
         
-        aligned_pairs.append({
-            'sequence': eng_sub['id'],
-            'eng_time': eng_sub['start'],
-            'chi_time': chi_sub['start'],
-            'english': eng_sub['text'],
-            'chinese': chi_sub['text'],
-            'confidence': round(confidence, 2),
-            'status': 'ALIGNED' if confidence > 0.3 else 'REVIEW'
-        })
-    
-    # Handle any leftovers
-    if len(english_subs) > len(chinese_subs):
-        for i in range(len(chinese_subs), len(english_subs)):
+        # Learned pattern boost (20% weight)
+        learned_boost = self.get_learned_boost(eng_sub['text'], chi_sub['text'])
+        
+        # Combined score
+        final_score = (
+            semantic_score * 0.5 +      # Semantic meaning (50%)
+            timing_score * 0.3 +        # Timing (30%)
+            learned_boost * 0.2         # Learned patterns (20%)
+        )
+        
+        return min(1.0, final_score)
+
+    def get_learned_boost(self, eng_text, chi_text):
+        """Boost score based on learned successful pairs"""
+        for learned_pair in self.learned_pairs:
+            if (learned_pair['english'].lower() in eng_text.lower() and
+                learned_pair['chinese'] in chi_text):
+                return learned_pair['confidence_boost']
+        return 0.0
+
+    def context_aware_matching(self, english_subs, chinese_subs, eng_index, chi_index, window=2):
+        """Check surrounding context for better matching"""
+        context_score = 0
+        context_pairs = 0
+        
+        # Check previous and next subtitles
+        for offset in range(-window, window + 1):
+            if offset == 0:
+                continue  # Skip current pair
+                
+            eng_ctx_idx = eng_index + offset
+            chi_ctx_idx = chi_index + offset
+            
+            if (0 <= eng_ctx_idx < len(english_subs) and 
+                0 <= chi_ctx_idx < len(chinese_subs)):
+                
+                eng_ctx = english_subs[eng_ctx_idx]['text']
+                chi_ctx = chinese_subs[chi_ctx_idx]['text']
+                
+                # If surrounding context also matches well
+                ctx_similarity = self.semantic_similarity(eng_ctx, chi_ctx)
+                if ctx_similarity > 0.6:
+                    context_score += ctx_similarity
+                    context_pairs += 1
+        
+        return context_score / max(context_pairs, 1) if context_pairs > 0 else 0
+
+    def align_subtitles(self, english_subs, chinese_subs):
+        """Smart alignment with semantic understanding"""
+        aligned_pairs = []
+        
+        for eng_index, eng_sub in enumerate(english_subs):
+            best_match = None
+            best_score = 0
+            best_chi_index = -1
+            
+            for chi_index, chi_sub in enumerate(chinese_subs):
+                # Calculate semantic similarity
+                semantic_score = self.semantic_similarity(eng_sub['text'], chi_sub['text'])
+                
+                # Combined scoring with timing and learned patterns
+                combined_score = self.combined_scoring(eng_sub, chi_sub, semantic_score)
+                
+                # Context awareness boost
+                context_boost = self.context_aware_matching(english_subs, chinese_subs, eng_index, chi_index)
+                final_score = combined_score * 0.9 + context_boost * 0.1
+                
+                if final_score > best_score:
+                    best_score = final_score
+                    best_match = chi_sub
+                    best_chi_index = chi_index
+            
+            # Determine status with adaptive thresholds
+            status = self.determine_status(best_score, eng_sub['text'])
+            match_quality = self.assess_match_quality(best_score)
+            
             aligned_pairs.append({
-                'sequence': english_subs[i]['id'],
-                'eng_time': english_subs[i]['start'],
-                'chi_time': 'NO MATCH',
-                'english': english_subs[i]['text'],
-                'chinese': 'NO MATCH',
-                'confidence': 0,
-                'status': 'MISALIGNED'
+                'sequence': eng_sub['id'],
+                'eng_time': eng_sub['start'],
+                'chi_time': best_match['start'] if best_match else 'NO MATCH',
+                'english': eng_sub['text'],
+                'chinese': best_match['text'] if best_match else 'NO MATCH',
+                'confidence': round(best_score, 3),
+                'status': status,
+                'match_quality': match_quality,
+                'semantic_score': round(best_score, 3)
             })
-    
-    return aligned_pairs
+        
+        return aligned_pairs
+
+    def determine_status(self, score, eng_text):
+        """Adaptive status determination"""
+        eng_text_lower = eng_text.lower()
+        
+        # Simple phrases need lower threshold
+        if any(simple in eng_text_lower for simple in ['yes', 'no', 'okay', 'hello', 'thank you']):
+            threshold_aligned = 0.6
+        # Complex sentences need higher threshold
+        elif len(eng_text_lower.split()) > 8:
+            threshold_aligned = 0.75
+        # Default thresholds
+        else:
+            threshold_aligned = 0.7
+        
+        if score > threshold_aligned:
+            return 'ALIGNED'
+        elif score > 0.4:
+            return 'REVIEW'
+        else:
+            return 'MISALIGNED'
+
+    def assess_match_quality(self, score):
+        """Detailed match quality assessment"""
+        if score > 0.9:
+            return "EXCELLENT - Near perfect semantic match"
+        elif score > 0.8:
+            return "VERY_GOOD - Strong meaning alignment"
+        elif score > 0.7:
+            return "GOOD - Reliable semantic match"
+        elif score > 0.6:
+            return "FAIR - Moderate meaning similarity"
+        elif score > 0.4:
+            return "WEAK - Low semantic similarity"
+        else:
+            return "POOR - Little meaningful connection"
+
+    def learn_from_feedback(self, english_text, chinese_text, was_correct):
+        """Learn from user corrections"""
+        if was_correct:
+            self.learned_pairs.append({
+                'english': english_text,
+                'chinese': chinese_text,
+                'confidence_boost': 0.3,
+                'usage_count': 1
+            })
+        # Keep only recent learning
+        if len(self.learned_pairs) > 100:
+            self.learned_pairs.pop(0)
