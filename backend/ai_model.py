@@ -7,37 +7,45 @@ import gc
 
 class SmartSubtitleAI:
     def __init__(self):
-        # Use a smaller, more efficient multilingual model
-        self.model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+        # Use a TINY model that will definitely fit in memory
+        print("Loading ultra-lightweight AI model...")
+        self.model = SentenceTransformer('all-MiniLM-L6-v2')  # Only 80MB!
+        print("Tiny model loaded successfully!")
         
         # Memory optimization
         torch.set_grad_enabled(False)
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
         
+        # Enhanced keyword matching for English-Chinese
         self.critical_phrases = {
-            'yes': ['是', '对的', '好的'],
-            'no': ['不', '不是', '不要'],
-            'look': ['看', '瞧', '看看'],
-            'ship': ['船', '帆船', '船只'],
-            'big': ['大', '巨大', '很大'],
-            'why': ['为什么', '為何', '为啥'],
-            'because': ['因为', '由於', '所以'],
-            'magic': ['神', '魔', '魔法'],
-            'lamp': ['燈', '灯', '灯笼'],
-            'family': ['家庭', '家人', '家规'],
-            'parents': ['父母', '爸妈', '家长'],
-            'honor': ['孝顺', '尊敬', '尊重']
+            'yes': ['是', '对的', '好的', '没错', '是的'],
+            'no': ['不', '不是', '不要', '没有', '别'],
+            'hello': ['你好', '您好', '嗨', '哈喽'],
+            'thank': ['谢谢', '感谢', '多谢', '谢谢您'],
+            'sorry': ['对不起', '抱歉', '不好意思', '抱歉了'],
+            'goodbye': ['再见', '拜拜', '再会', '下次见'],
+            'please': ['请', '拜托', '求你了'],
+            'what': ['什么', '何事', '干嘛', '干啥'],
+            'why': ['为什么', '為何', '为啥', '为何'],
+            'how': ['怎么', '如何', '怎样', '怎么样'],
+            'where': ['哪里', '何处', '哪儿', '什么地方'],
+            'when': ['什么时候', '何时', '啥时候'],
+            'who': ['谁', '何人', '什么人'],
+            'look': ['看', '瞧', '看看', '观看', '瞅'],
+            'listen': ['听', '听着', '听听', '听我说'],
+            'come': ['来', '过来', '来到', '来吧'],
+            'go': ['去', '走', '离开', '走吧'],
+            'big': ['大', '巨大', '很大', '大型', '大大的'],
+            'small': ['小', '小小', '小型', '微小', '小小的'],
+            'good': ['好', '很好', '不错', '优秀', '好的'],
+            'bad': ['坏', '不好', '糟糕', '差劲', '坏的'],
+            # Add more common phrases as needed
         }
         self.learned_pairs = []
 
     def time_to_seconds(self, time_str):
         """Convert SRT time to seconds"""
         try:
-            time_str = str(time_str)
-            if ',' in time_str:
-                time_str = time_str.replace(',', '.')
-            
+            time_str = str(time_str).replace(',', '.')
             parts = time_str.split(':')
             if len(parts) == 3:
                 hours = int(parts[0])
@@ -48,31 +56,52 @@ class SmartSubtitleAI:
             pass
         return 0
 
-    def encode_batch_memory_safe(self, texts, batch_size=8):
-        """Encode texts in batches to save memory"""
-        all_embeddings = []
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i:i + batch_size]
-            embeddings = self.model.encode(batch, convert_to_tensor=False, show_progress_bar=False)
-            all_embeddings.extend(embeddings)
-            # Clear memory
-            if i % 32 == 0:
-                gc.collect()
-        return np.array(all_embeddings)
+    def semantic_similarity(self, eng_text, chi_text):
+        """Calculate similarity with keyword fallback"""
+        try:
+            # Try keyword matching first (fast and memory efficient)
+            keyword_score = self.keyword_similarity(eng_text, chi_text)
+            
+            # If keyword score is high, use it directly
+            if keyword_score > 0.7:
+                return keyword_score
+            
+            # Otherwise use the tiny model
+            embeddings = self.model.encode([eng_text, chi_text], 
+                                         convert_to_tensor=False,
+                                         show_progress_bar=False)
+            
+            # Manual cosine similarity to avoid tensor memory
+            dot_product = np.dot(embeddings[0], embeddings[1])
+            norm_a = np.linalg.norm(embeddings[0])
+            norm_b = np.linalg.norm(embeddings[1])
+            
+            if norm_a > 0 and norm_b > 0:
+                similarity = dot_product / (norm_a * norm_b)
+                return max(keyword_score, similarity)
+            
+            return keyword_score
+            
+        except Exception as e:
+            # Fallback to keyword matching if anything fails
+            return self.keyword_similarity(eng_text, chi_text)
 
-    def semantic_similarity_batch(self, eng_embeddings, chi_embeddings, eng_idx, chi_idx):
-        """Calculate similarity between precomputed embeddings"""
-        eng_emb = eng_embeddings[eng_idx]
-        chi_emb = chi_embeddings[chi_idx]
+    def keyword_similarity(self, eng_text, chi_text):
+        """Enhanced keyword-based similarity"""
+        eng_lower = eng_text.lower()
+        matches = 0
+        possible = 0
         
-        # Manual cosine similarity to avoid tensor operations
-        dot_product = np.dot(eng_emb, chi_emb)
-        norm_eng = np.linalg.norm(eng_emb)
-        norm_chi = np.linalg.norm(chi_emb)
+        for eng_phrase, chi_phrases in self.critical_phrases.items():
+            has_eng = eng_phrase in eng_lower
+            has_chi = any(chi_phrase in chi_text for chi_phrase in chi_phrases)
+            
+            if has_eng or has_chi:
+                possible += 1
+                if has_eng and has_chi:
+                    matches += 1
         
-        if norm_eng > 0 and norm_chi > 0:
-            return dot_product / (norm_eng * norm_chi)
-        return 0.0
+        return matches / max(possible, 1) if possible > 0 else 0.0
 
     def combined_scoring(self, eng_sub, chi_sub, semantic_score):
         """Combine semantic meaning with timing"""
@@ -85,56 +114,40 @@ class SmartSubtitleAI:
         return min(1.0, final_score)
 
     def align_subtitles(self, english_subs, chinese_subs):
-        """Memory-optimized alignment with proper BERT semantics"""
+        """Memory-safe alignment"""
         print(f"Aligning {len(english_subs)} English and {len(chinese_subs)} Chinese subtitles")
-        
-        # Precompute all embeddings first (memory efficient)
-        eng_texts = [sub['text'] for sub in english_subs]
-        chi_texts = [sub['text'] for sub in chinese_subs]
-        
-        print("Computing English embeddings...")
-        eng_embeddings = self.encode_batch_memory_safe(eng_texts, batch_size=4)
-        
-        print("Computing Chinese embeddings...")
-        chi_embeddings = self.encode_batch_memory_safe(chi_texts, batch_size=4)
         
         aligned_pairs = []
         
-        # Process in small chunks
-        chunk_size = min(20, len(english_subs))
-        for chunk_start in range(0, len(english_subs), chunk_size):
-            chunk_end = min(chunk_start + chunk_size, len(english_subs))
+        # Process in very small batches
+        batch_size = 5
+        for i in range(0, len(english_subs), batch_size):
+            batch_end = min(i + batch_size, len(english_subs))
             
-            for eng_idx in range(chunk_start, chunk_end):
+            for eng_idx in range(i, batch_end):
                 eng_sub = english_subs[eng_idx]
                 best_match = None
                 best_score = 0
-                best_chi_idx = -1
                 
-                # Search in reasonable time window
-                search_start = max(0, eng_idx - 15)
-                search_end = min(len(chinese_subs), eng_idx + 15)
+                # Search in reasonable window
+                search_start = max(0, eng_idx - 10)
+                search_end = min(len(chinese_subs), eng_idx + 10)
                 
                 for chi_idx in range(search_start, search_end):
                     chi_sub = chinese_subs[chi_idx]
                     
-                    # Calculate semantic similarity
-                    semantic_score = self.semantic_similarity_batch(
-                        eng_embeddings, chi_embeddings, eng_idx, chi_idx
-                    )
-                    
-                    # Combined scoring
+                    # Calculate similarity
+                    semantic_score = self.semantic_similarity(eng_sub['text'], chi_sub['text'])
                     combined_score = self.combined_scoring(eng_sub, chi_sub, semantic_score)
                     
                     if combined_score > best_score:
                         best_score = combined_score
                         best_match = chi_sub
-                        best_chi_idx = chi_idx
                 
                 # Determine status
-                if best_score > 0.7:
+                if best_score > 0.6:
                     status = 'ALIGNED'
-                elif best_score > 0.4:
+                elif best_score > 0.3:
                     status = 'REVIEW'
                 else:
                     status = 'MISALIGNED'
@@ -150,9 +163,10 @@ class SmartSubtitleAI:
                     'match_quality': self.assess_match_quality(best_score)
                 })
             
-            # Clear memory between chunks
+            # Clear memory after each batch
             gc.collect()
         
+        print("Alignment completed successfully!")
         return aligned_pairs
 
     def assess_match_quality(self, score):
@@ -172,11 +186,8 @@ class SmartSubtitleAI:
 
     def learn_from_feedback(self, english_text, chinese_text, was_correct):
         """Learn from user corrections"""
-        if was_correct:
+        if was_correct and len(self.learned_pairs) < 50:
             self.learned_pairs.append({
                 'english': english_text,
-                'chinese': chinese_text,
-                'confidence_boost': 0.3
+                'chinese': chinese_text
             })
-        if len(self.learned_pairs) > 50:
-            self.learned_pairs.pop(0)
