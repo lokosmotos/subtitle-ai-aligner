@@ -1,96 +1,43 @@
 import re
 import math
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer, util
+import torch
 import numpy as np
+import gc
 
 class SmartSubtitleAI:
     def __init__(self):
-        # Lightweight TF-IDF vectorizer with limited features
-        self.vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
+        # Use a smaller, more efficient multilingual model
+        self.model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
         
-        # Critical phrases for English-Chinese matching
+        # Memory optimization
+        torch.set_grad_enabled(False)
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
         self.critical_phrases = {
-            'yes': ['是', '对的', '好的', '没错'],
-            'no': ['不', '不是', '不要', '没有'],
-            'hello': ['你好', '您好', '嗨'],
-            'thank': ['谢谢', '感谢', '多谢'],
-            'sorry': ['对不起', '抱歉', '不好意思'],
-            'goodbye': ['再见', '拜拜', '再会'],
-            'please': ['请', '拜托'],
-            'what': ['什么', '何事', '干嘛'],
+            'yes': ['是', '对的', '好的'],
+            'no': ['不', '不是', '不要'],
+            'look': ['看', '瞧', '看看'],
+            'ship': ['船', '帆船', '船只'],
+            'big': ['大', '巨大', '很大'],
             'why': ['为什么', '為何', '为啥'],
-            'how': ['怎么', '如何', '怎样'],
-            'where': ['哪里', '何处', '哪儿'],
-            'when': ['什么时候', '何时'],
-            'who': ['谁', '何人'],
-            'which': ['哪个', '哪一种'],
-            'look': ['看', '瞧', '看看', '观看'],
-            'listen': ['听', '听着', '听听'],
-            'come': ['来', '过来', '来到'],
-            'go': ['去', '走', '离开'],
-            'big': ['大', '巨大', '很大', '大型'],
-            'small': ['小', '小小', '小型', '微小'],
-            'good': ['好', '很好', '不错', '优秀'],
-            'bad': ['坏', '不好', '糟糕', '差劲'],
-            'love': ['爱', '喜欢', '热爱', '爱情'],
-            'hate': ['恨', '讨厌', '憎恨'],
-            'family': ['家庭', '家人', '家规', '家族'],
-            'friend': ['朋友', '友人', '好友'],
-            'time': ['时间', '时候', '时光'],
-            'day': ['天', '日子', '白天'],
-            'night': ['晚上', '夜晚', '夜间'],
-            'water': ['水', '水分', '水域'],
-            'food': ['食物', '食品', '吃的'],
-            'house': ['房子', '房屋', '家'],
-            'car': ['车', '汽车', '车子'],
-            'money': ['钱', '金钱', '货币'],
-            'work': ['工作', '干活', '做事'],
-            'school': ['学校', '上学', '校园'],
-            'book': ['书', '书籍', '书本'],
-            'movie': ['电影', '影片', '片子'],
-            'music': ['音乐', '歌曲', '乐曲'],
-            'man': ['男人', '男士', '男性'],
-            'woman': ['女人', '女士', '女性'],
-            'child': ['孩子', '儿童', '小孩'],
-            'father': ['父亲', '爸爸', '爹'],
-            'mother': ['母亲', '妈妈', '娘'],
-            'son': ['儿子', '小子'],
-            'daughter': ['女儿', '闺女'],
-            'brother': ['兄弟', '哥哥', '弟弟'],
-            'sister': ['姐妹', '姐姐', '妹妹'],
-            'city': ['城市', '都市', '城区'],
-            'country': ['国家', '乡村', '农村'],
-            'world': ['世界', '地球', '天下'],
-            'life': ['生活', '生命', '人生'],
-            'death': ['死亡', '死', '去世'],
-            'happy': ['快乐', '开心', '高兴'],
-            'sad': ['悲伤', '伤心', '难过'],
-            'angry': ['生气', '愤怒', '发怒'],
-            'beautiful': ['美丽', '漂亮', '美好'],
-            'ugly': ['丑陋', '难看', '丑'],
-            'new': ['新', '新的', '新鲜'],
-            'old': ['老', '旧', '古老'],
-            'young': ['年轻', '年青', '幼小'],
-            'hot': ['热', '炎热', '热门'],
-            'cold': ['冷', '寒冷', '冷淡'],
-            'fast': ['快', '快速', '迅速'],
-            'slow': ['慢', '缓慢', '迟钝'],
-            'strong': ['强', '强大', '强壮'],
-            'weak': ['弱', '弱小', '虚弱'],
-            'rich': ['富', '富有', '富裕'],
-            'poor': ['穷', '贫穷', '贫困'],
-            'right': ['对', '正确', '右边'],
-            'wrong': ['错', '错误', '不对'],
-            'true': ['真', '真实', '真正'],
-            'false': ['假', '虚假', '伪造']
+            'because': ['因为', '由於', '所以'],
+            'magic': ['神', '魔', '魔法'],
+            'lamp': ['燈', '灯', '灯笼'],
+            'family': ['家庭', '家人', '家规'],
+            'parents': ['父母', '爸妈', '家长'],
+            'honor': ['孝顺', '尊敬', '尊重']
         }
         self.learned_pairs = []
 
     def time_to_seconds(self, time_str):
-        """Convert SRT time to seconds - optimized"""
+        """Convert SRT time to seconds"""
         try:
-            time_str = str(time_str).replace(',', '.')
+            time_str = str(time_str)
+            if ',' in time_str:
+                time_str = time_str.replace(',', '.')
+            
             parts = time_str.split(':')
             if len(parts) == 3:
                 hours = int(parts[0])
@@ -101,89 +48,96 @@ class SmartSubtitleAI:
             pass
         return 0
 
-    def semantic_similarity(self, eng_text, chi_text):
-        """Calculate similarity using lightweight TF-IDF"""
-        try:
-            # Use keyword matching first (faster)
-            keyword_score = self.keyword_similarity(eng_text, chi_text)
-            if keyword_score > 0.8:
-                return keyword_score
-            
-            # Fall back to TF-IDF if needed
-            texts = [eng_text.lower(), chi_text]
-            tfidf_matrix = self.vectorizer.fit_transform(texts)
-            similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
-            return max(keyword_score, similarity)
-        except:
-            return self.keyword_similarity(eng_text, chi_text)
+    def encode_batch_memory_safe(self, texts, batch_size=8):
+        """Encode texts in batches to save memory"""
+        all_embeddings = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            embeddings = self.model.encode(batch, convert_to_tensor=False, show_progress_bar=False)
+            all_embeddings.extend(embeddings)
+            # Clear memory
+            if i % 32 == 0:
+                gc.collect()
+        return np.array(all_embeddings)
 
-    def keyword_similarity(self, eng_text, chi_text):
-        """Optimized keyword-based similarity"""
-        eng_lower = eng_text.lower()
-        matches = 0
+    def semantic_similarity_batch(self, eng_embeddings, chi_embeddings, eng_idx, chi_idx):
+        """Calculate similarity between precomputed embeddings"""
+        eng_emb = eng_embeddings[eng_idx]
+        chi_emb = chi_embeddings[chi_idx]
         
-        for eng_phrase, chi_phrases in self.critical_phrases.items():
-            if eng_phrase in eng_lower:
-                for chi_phrase in chi_phrases:
-                    if chi_phrase in chi_text:
-                        matches += 1
-                        break
+        # Manual cosine similarity to avoid tensor operations
+        dot_product = np.dot(eng_emb, chi_emb)
+        norm_eng = np.linalg.norm(eng_emb)
+        norm_chi = np.linalg.norm(chi_emb)
         
-        # Normalize by number of English keywords found
-        eng_keywords_found = sum(1 for phrase in self.critical_phrases if phrase in eng_lower)
-        if eng_keywords_found > 0:
-            return matches / eng_keywords_found
+        if norm_eng > 0 and norm_chi > 0:
+            return dot_product / (norm_eng * norm_chi)
         return 0.0
 
     def combined_scoring(self, eng_sub, chi_sub, semantic_score):
-        """Optimized combined scoring"""
-        # Timing proximity (40% weight)
+        """Combine semantic meaning with timing"""
         eng_time = self.time_to_seconds(eng_sub['start'])
         chi_time = self.time_to_seconds(chi_sub['start'])
         time_diff = abs(eng_time - chi_time)
-        timing_score = max(0, 1 - (time_diff / 3.0))  # 3-second window
+        timing_score = max(0, 1 - (time_diff / 5.0))
         
-        # Combined score
-        final_score = (semantic_score * 0.6 + timing_score * 0.4)
+        final_score = (semantic_score * 0.7 + timing_score * 0.3)
         return min(1.0, final_score)
 
     def align_subtitles(self, english_subs, chinese_subs):
-        """Memory-optimized alignment"""
+        """Memory-optimized alignment with proper BERT semantics"""
+        print(f"Aligning {len(english_subs)} English and {len(chinese_subs)} Chinese subtitles")
+        
+        # Precompute all embeddings first (memory efficient)
+        eng_texts = [sub['text'] for sub in english_subs]
+        chi_texts = [sub['text'] for sub in chinese_subs]
+        
+        print("Computing English embeddings...")
+        eng_embeddings = self.encode_batch_memory_safe(eng_texts, batch_size=4)
+        
+        print("Computing Chinese embeddings...")
+        chi_embeddings = self.encode_batch_memory_safe(chi_texts, batch_size=4)
+        
         aligned_pairs = []
         
-        # Process in smaller batches to save memory
-        batch_size = min(50, len(english_subs))
-        
-        for i in range(0, len(english_subs), batch_size):
-            batch_eng = english_subs[i:i + batch_size]
+        # Process in small chunks
+        chunk_size = min(20, len(english_subs))
+        for chunk_start in range(0, len(english_subs), chunk_size):
+            chunk_end = min(chunk_start + chunk_size, len(english_subs))
             
-            for eng_sub in batch_eng:
+            for eng_idx in range(chunk_start, chunk_end):
+                eng_sub = english_subs[eng_idx]
                 best_match = None
                 best_score = 0
+                best_chi_idx = -1
                 
-                # Search in reasonable window around English timestamp
-                eng_time = self.time_to_seconds(eng_sub['start'])
-                search_range = min(20, len(chinese_subs))
+                # Search in reasonable time window
+                search_start = max(0, eng_idx - 15)
+                search_end = min(len(chinese_subs), eng_idx + 15)
                 
-                start_idx = max(0, i - search_range)
-                end_idx = min(len(chinese_subs), i + search_range)
-                
-                for chi_index in range(start_idx, end_idx):
-                    chi_sub = chinese_subs[chi_index]
+                for chi_idx in range(search_start, search_end):
+                    chi_sub = chinese_subs[chi_idx]
                     
-                    # Quick timing check
-                    chi_time = self.time_to_seconds(chi_sub['start'])
-                    if abs(eng_time - chi_time) > 10:  # 10-second threshold
-                        continue
+                    # Calculate semantic similarity
+                    semantic_score = self.semantic_similarity_batch(
+                        eng_embeddings, chi_embeddings, eng_idx, chi_idx
+                    )
                     
-                    semantic_score = self.semantic_similarity(eng_sub['text'], chi_sub['text'])
+                    # Combined scoring
                     combined_score = self.combined_scoring(eng_sub, chi_sub, semantic_score)
                     
                     if combined_score > best_score:
                         best_score = combined_score
                         best_match = chi_sub
+                        best_chi_idx = chi_idx
                 
-                status = 'ALIGNED' if best_score > 0.6 else 'REVIEW' if best_score > 0.3 else 'MISALIGNED'
+                # Determine status
+                if best_score > 0.7:
+                    status = 'ALIGNED'
+                elif best_score > 0.4:
+                    status = 'REVIEW'
+                else:
+                    status = 'MISALIGNED'
                 
                 aligned_pairs.append({
                     'sequence': eng_sub['id'],
@@ -192,15 +146,37 @@ class SmartSubtitleAI:
                     'english': eng_sub['text'],
                     'chinese': best_match['text'] if best_match else 'NO MATCH',
                     'confidence': round(best_score, 3),
-                    'status': status
+                    'status': status,
+                    'match_quality': self.assess_match_quality(best_score)
                 })
+            
+            # Clear memory between chunks
+            gc.collect()
         
         return aligned_pairs
 
+    def assess_match_quality(self, score):
+        """Match quality assessment"""
+        if score > 0.9:
+            return "EXCELLENT"
+        elif score > 0.8:
+            return "VERY_GOOD"
+        elif score > 0.7:
+            return "GOOD"
+        elif score > 0.6:
+            return "FAIR"
+        elif score > 0.4:
+            return "WEAK"
+        else:
+            return "POOR"
+
     def learn_from_feedback(self, english_text, chinese_text, was_correct):
-        """Lightweight learning"""
-        if was_correct and len(self.learned_pairs) < 50:  # Limit learned pairs
+        """Learn from user corrections"""
+        if was_correct:
             self.learned_pairs.append({
                 'english': english_text,
-                'chinese': chinese_text
+                'chinese': chinese_text,
+                'confidence_boost': 0.3
             })
+        if len(self.learned_pairs) > 50:
+            self.learned_pairs.pop(0)
