@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://your-backend-url.onrender.com';
+const API_BASE_URL = 'https://subtitle-ai-backend-f6c3.onrender.com/';
 
 // Color-coded confidence display
 function getConfidenceColor(confidence) {
