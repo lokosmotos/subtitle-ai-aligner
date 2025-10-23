@@ -1,15 +1,17 @@
 import re
 import math
-from sentence_transformers import SentenceTransformer, util
+from transformers import AutoTokenizer, AutoModel
 import torch
 import numpy as np
 import gc
 
 class SmartSubtitleAI:
     def __init__(self):
-        # Use a TINY model that will definitely fit in memory
+        # Use transformers directly with a tiny model
         print("Loading ultra-lightweight AI model...")
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')  # Only 80MB!
+        model_name = "sentence-transformers/all-MiniLM-L6-v2"
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name)
         print("Tiny model loaded successfully!")
         
         # Memory optimization
@@ -38,9 +40,26 @@ class SmartSubtitleAI:
             'small': ['小', '小小', '小型', '微小', '小小的'],
             'good': ['好', '很好', '不错', '优秀', '好的'],
             'bad': ['坏', '不好', '糟糕', '差劲', '坏的'],
-            # Add more common phrases as needed
         }
         self.learned_pairs = []
+
+    def mean_pooling(self, model_output, attention_mask):
+        """Mean pooling to get sentence embeddings"""
+        token_embeddings = model_output[0]
+        input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+        return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+
+    def get_embeddings(self, texts):
+        """Get embeddings for texts"""
+        encoded_input = self.tokenizer(texts, padding=True, truncation=True, return_tensors='pt')
+        
+        with torch.no_grad():
+            model_output = self.model(**encoded_input)
+        
+        embeddings = self.mean_pooling(model_output, encoded_input['attention_mask'])
+        embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+        
+        return embeddings.cpu().numpy()
 
     def time_to_seconds(self, time_str):
         """Convert SRT time to seconds"""
@@ -67,11 +86,9 @@ class SmartSubtitleAI:
                 return keyword_score
             
             # Otherwise use the tiny model
-            embeddings = self.model.encode([eng_text, chi_text], 
-                                         convert_to_tensor=False,
-                                         show_progress_bar=False)
+            embeddings = self.get_embeddings([eng_text, chi_text])
             
-            # Manual cosine similarity to avoid tensor memory
+            # Manual cosine similarity
             dot_product = np.dot(embeddings[0], embeddings[1])
             norm_a = np.linalg.norm(embeddings[0])
             norm_b = np.linalg.norm(embeddings[1])
@@ -83,6 +100,7 @@ class SmartSubtitleAI:
             return keyword_score
             
         except Exception as e:
+            print(f"Embedding error: {e}")
             # Fallback to keyword matching if anything fails
             return self.keyword_similarity(eng_text, chi_text)
 
