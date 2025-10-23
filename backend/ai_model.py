@@ -1,70 +1,45 @@
 import re
 import math
-from transformers import AutoTokenizer, AutoModel
+from sentence_transformers import SentenceTransformer, util
 import torch
 import numpy as np
-import gc
 
 class SmartSubtitleAI:
     def __init__(self):
-        # Use transformers directly with a tiny model
-        print("Loading ultra-lightweight AI model...")
-        model_name = "sentence-transformers/all-MiniLM-L6-v2"
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name)
-        print("Tiny model loaded successfully!")
+        # Load multilingual model for English-Chinese semantic matching
+        self.model = SentenceTransformer('distiluse-base-multilingual-cased-v1')
         
-        # Memory optimization
-        torch.set_grad_enabled(False)
-        
-        # Enhanced keyword matching for English-Chinese
-        self.critical_phrases = {
-            'yes': ['是', '对的', '好的', '没错', '是的'],
-            'no': ['不', '不是', '不要', '没有', '别'],
-            'hello': ['你好', '您好', '嗨', '哈喽'],
-            'thank': ['谢谢', '感谢', '多谢', '谢谢您'],
-            'sorry': ['对不起', '抱歉', '不好意思', '抱歉了'],
-            'goodbye': ['再见', '拜拜', '再会', '下次见'],
-            'please': ['请', '拜托', '求你了'],
-            'what': ['什么', '何事', '干嘛', '干啥'],
-            'why': ['为什么', '為何', '为啥', '为何'],
-            'how': ['怎么', '如何', '怎样', '怎么样'],
-            'where': ['哪里', '何处', '哪儿', '什么地方'],
-            'when': ['什么时候', '何时', '啥时候'],
-            'who': ['谁', '何人', '什么人'],
-            'look': ['看', '瞧', '看看', '观看', '瞅'],
-            'listen': ['听', '听着', '听听', '听我说'],
-            'come': ['来', '过来', '来到', '来吧'],
-            'go': ['去', '走', '离开', '走吧'],
-            'big': ['大', '巨大', '很大', '大型', '大大的'],
-            'small': ['小', '小小', '小型', '微小', '小小的'],
-            'good': ['好', '很好', '不错', '优秀', '好的'],
-            'bad': ['坏', '不好', '糟糕', '差劲', '坏的'],
-        }
+        # Learning system
         self.learned_pairs = []
-
-    def mean_pooling(self, model_output, attention_mask):
-        """Mean pooling to get sentence embeddings"""
-        token_embeddings = model_output[0]
-        input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-        return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
-
-    def get_embeddings(self, texts):
-        """Get embeddings for texts"""
-        encoded_input = self.tokenizer(texts, padding=True, truncation=True, return_tensors='pt')
+        self.confidence_thresholds = {
+            'high': 0.8,
+            'medium': 0.5,
+            'low': 0.3
+        }
         
-        with torch.no_grad():
-            model_output = self.model(**encoded_input)
-        
-        embeddings = self.mean_pooling(model_output, encoded_input['attention_mask'])
-        embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
-        
-        return embeddings.cpu().numpy()
+        # Critical phrases as fallback
+        self.critical_phrases = {
+            'yes': ['是', '对的', '好的'],
+            'no': ['不', '不是', '不要'],
+            'look': ['看', '瞧', '看看'],
+            'ship': ['船', '帆船', '船只'],
+            'big': ['大', '巨大', '很大'],
+            'why': ['为什么', '為何', '为啥'],
+            'because': ['因为', '由於', '所以'],
+            'magic': ['神', '魔', '魔法'],
+            'lamp': ['燈', '灯', '灯笼'],
+            'family': ['家庭', '家人', '家规'],
+            'parents': ['父母', '爸妈', '家长'],
+            'honor': ['孝顺', '尊敬', '尊重']
+        }
 
     def time_to_seconds(self, time_str):
         """Convert SRT time to seconds"""
         try:
-            time_str = str(time_str).replace(',', '.')
+            time_str = str(time_str)
+            if ',' in time_str:
+                time_str = time_str.replace(',', '.')
+            
             parts = time_str.split(':')
             if len(parts) == 3:
                 hours = int(parts[0])
@@ -76,36 +51,21 @@ class SmartSubtitleAI:
         return 0
 
     def semantic_similarity(self, eng_text, chi_text):
-        """Calculate similarity with keyword fallback"""
+        """Calculate semantic similarity using multilingual embeddings"""
         try:
-            # Try keyword matching first (fast and memory efficient)
-            keyword_score = self.keyword_similarity(eng_text, chi_text)
+            # Encode both texts
+            embeddings = self.model.encode([eng_text, chi_text], convert_to_tensor=True)
             
-            # If keyword score is high, use it directly
-            if keyword_score > 0.7:
-                return keyword_score
+            # Calculate cosine similarity
+            similarity = util.pytorch_cos_sim(embeddings[0], embeddings[1]).item()
             
-            # Otherwise use the tiny model
-            embeddings = self.get_embeddings([eng_text, chi_text])
-            
-            # Manual cosine similarity
-            dot_product = np.dot(embeddings[0], embeddings[1])
-            norm_a = np.linalg.norm(embeddings[0])
-            norm_b = np.linalg.norm(embeddings[1])
-            
-            if norm_a > 0 and norm_b > 0:
-                similarity = dot_product / (norm_a * norm_b)
-                return max(keyword_score, similarity)
-            
-            return keyword_score
-            
+            return max(0, similarity)  # Ensure non-negative
         except Exception as e:
-            print(f"Embedding error: {e}")
-            # Fallback to keyword matching if anything fails
+            # Fallback to keyword matching if embedding fails
             return self.keyword_similarity(eng_text, chi_text)
 
     def keyword_similarity(self, eng_text, chi_text):
-        """Enhanced keyword-based similarity"""
+        """Fallback keyword-based similarity"""
         eng_lower = eng_text.lower()
         matches = 0
         possible = 0
@@ -119,93 +79,151 @@ class SmartSubtitleAI:
                 if has_eng and has_chi:
                     matches += 1
         
-        return matches / max(possible, 1) if possible > 0 else 0.0
+        return matches / max(possible, 1)
 
     def combined_scoring(self, eng_sub, chi_sub, semantic_score):
-        """Combine semantic meaning with timing"""
+        """Combine semantic meaning with timing and learned patterns"""
+        # Timing proximity (30% weight)
         eng_time = self.time_to_seconds(eng_sub['start'])
         chi_time = self.time_to_seconds(chi_sub['start'])
         time_diff = abs(eng_time - chi_time)
-        timing_score = max(0, 1 - (time_diff / 5.0))
+        timing_score = max(0, 1 - (time_diff / 5.0))  # 5-second window
         
-        final_score = (semantic_score * 0.7 + timing_score * 0.3)
+        # Learned pattern boost (20% weight)
+        learned_boost = self.get_learned_boost(eng_sub['text'], chi_sub['text'])
+        
+        # Combined score
+        final_score = (
+            semantic_score * 0.5 +      # Semantic meaning (50%)
+            timing_score * 0.3 +        # Timing (30%)
+            learned_boost * 0.2         # Learned patterns (20%)
+        )
+        
         return min(1.0, final_score)
 
-    def align_subtitles(self, english_subs, chinese_subs):
-        """Memory-safe alignment"""
-        print(f"Aligning {len(english_subs)} English and {len(chinese_subs)} Chinese subtitles")
+    def get_learned_boost(self, eng_text, chi_text):
+        """Boost score based on learned successful pairs"""
+        for learned_pair in self.learned_pairs:
+            if (learned_pair['english'].lower() in eng_text.lower() and
+                learned_pair['chinese'] in chi_text):
+                return learned_pair['confidence_boost']
+        return 0.0
+
+    def context_aware_matching(self, english_subs, chinese_subs, eng_index, chi_index, window=2):
+        """Check surrounding context for better matching"""
+        context_score = 0
+        context_pairs = 0
         
+        # Check previous and next subtitles
+        for offset in range(-window, window + 1):
+            if offset == 0:
+                continue  # Skip current pair
+                
+            eng_ctx_idx = eng_index + offset
+            chi_ctx_idx = chi_index + offset
+            
+            if (0 <= eng_ctx_idx < len(english_subs) and 
+                0 <= chi_ctx_idx < len(chinese_subs)):
+                
+                eng_ctx = english_subs[eng_ctx_idx]['text']
+                chi_ctx = chinese_subs[chi_ctx_idx]['text']
+                
+                # If surrounding context also matches well
+                ctx_similarity = self.semantic_similarity(eng_ctx, chi_ctx)
+                if ctx_similarity > 0.6:
+                    context_score += ctx_similarity
+                    context_pairs += 1
+        
+        return context_score / max(context_pairs, 1) if context_pairs > 0 else 0
+
+    def align_subtitles(self, english_subs, chinese_subs):
+        """Smart alignment with semantic understanding"""
         aligned_pairs = []
         
-        # Process in very small batches
-        batch_size = 5
-        for i in range(0, len(english_subs), batch_size):
-            batch_end = min(i + batch_size, len(english_subs))
+        for eng_index, eng_sub in enumerate(english_subs):
+            best_match = None
+            best_score = 0
+            best_chi_index = -1
             
-            for eng_idx in range(i, batch_end):
-                eng_sub = english_subs[eng_idx]
-                best_match = None
-                best_score = 0
+            for chi_index, chi_sub in enumerate(chinese_subs):
+                # Calculate semantic similarity
+                semantic_score = self.semantic_similarity(eng_sub['text'], chi_sub['text'])
                 
-                # Search in reasonable window
-                search_start = max(0, eng_idx - 10)
-                search_end = min(len(chinese_subs), eng_idx + 10)
+                # Combined scoring with timing and learned patterns
+                combined_score = self.combined_scoring(eng_sub, chi_sub, semantic_score)
                 
-                for chi_idx in range(search_start, search_end):
-                    chi_sub = chinese_subs[chi_idx]
-                    
-                    # Calculate similarity
-                    semantic_score = self.semantic_similarity(eng_sub['text'], chi_sub['text'])
-                    combined_score = self.combined_scoring(eng_sub, chi_sub, semantic_score)
-                    
-                    if combined_score > best_score:
-                        best_score = combined_score
-                        best_match = chi_sub
+                # Context awareness boost
+                context_boost = self.context_aware_matching(english_subs, chinese_subs, eng_index, chi_index)
+                final_score = combined_score * 0.9 + context_boost * 0.1
                 
-                # Determine status
-                if best_score > 0.6:
-                    status = 'ALIGNED'
-                elif best_score > 0.3:
-                    status = 'REVIEW'
-                else:
-                    status = 'MISALIGNED'
-                
-                aligned_pairs.append({
-                    'sequence': eng_sub['id'],
-                    'eng_time': eng_sub['start'],
-                    'chi_time': best_match['start'] if best_match else 'NO MATCH',
-                    'english': eng_sub['text'],
-                    'chinese': best_match['text'] if best_match else 'NO MATCH',
-                    'confidence': round(best_score, 3),
-                    'status': status,
-                    'match_quality': self.assess_match_quality(best_score)
-                })
+                if final_score > best_score:
+                    best_score = final_score
+                    best_match = chi_sub
+                    best_chi_index = chi_index
             
-            # Clear memory after each batch
-            gc.collect()
+            # Determine status with adaptive thresholds
+            status = self.determine_status(best_score, eng_sub['text'])
+            match_quality = self.assess_match_quality(best_score)
+            
+            aligned_pairs.append({
+                'sequence': eng_sub['id'],
+                'eng_time': eng_sub['start'],
+                'chi_time': best_match['start'] if best_match else 'NO MATCH',
+                'english': eng_sub['text'],
+                'chinese': best_match['text'] if best_match else 'NO MATCH',
+                'confidence': round(best_score, 3),
+                'status': status,
+                'match_quality': match_quality,
+                'semantic_score': round(best_score, 3)
+            })
         
-        print("Alignment completed successfully!")
         return aligned_pairs
 
-    def assess_match_quality(self, score):
-        """Match quality assessment"""
-        if score > 0.9:
-            return "EXCELLENT"
-        elif score > 0.8:
-            return "VERY_GOOD"
-        elif score > 0.7:
-            return "GOOD"
-        elif score > 0.6:
-            return "FAIR"
-        elif score > 0.4:
-            return "WEAK"
+    def determine_status(self, score, eng_text):
+        """Adaptive status determination"""
+        eng_text_lower = eng_text.lower()
+        
+        # Simple phrases need lower threshold
+        if any(simple in eng_text_lower for simple in ['yes', 'no', 'okay', 'hello', 'thank you']):
+            threshold_aligned = 0.6
+        # Complex sentences need higher threshold
+        elif len(eng_text_lower.split()) > 8:
+            threshold_aligned = 0.75
+        # Default thresholds
         else:
-            return "POOR"
+            threshold_aligned = 0.7
+        
+        if score > threshold_aligned:
+            return 'ALIGNED'
+        elif score > 0.4:
+            return 'REVIEW'
+        else:
+            return 'MISALIGNED'
+
+    def assess_match_quality(self, score):
+        """Detailed match quality assessment"""
+        if score > 0.9:
+            return "EXCELLENT - Near perfect semantic match"
+        elif score > 0.8:
+            return "VERY_GOOD - Strong meaning alignment"
+        elif score > 0.7:
+            return "GOOD - Reliable semantic match"
+        elif score > 0.6:
+            return "FAIR - Moderate meaning similarity"
+        elif score > 0.4:
+            return "WEAK - Low semantic similarity"
+        else:
+            return "POOR - Little meaningful connection"
 
     def learn_from_feedback(self, english_text, chinese_text, was_correct):
         """Learn from user corrections"""
-        if was_correct and len(self.learned_pairs) < 50:
+        if was_correct:
             self.learned_pairs.append({
                 'english': english_text,
-                'chinese': chinese_text
+                'chinese': chinese_text,
+                'confidence_boost': 0.3,
+                'usage_count': 1
             })
+        # Keep only recent learning
+        if len(self.learned_pairs) > 100:
+            self.learned_pairs.pop(0)
