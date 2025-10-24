@@ -1,249 +1,468 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+// Global variables
+let uploadedFiles = [];
+let alignmentResults = null;
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
+
+// DOM Elements
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('fileInput');
+const filePreview = document.getElementById('filePreview');
+const alignBtn = document.getElementById('alignBtn');
+const progressSection = document.getElementById('progressSection');
+const resultsSection = document.getElementById('resultsSection');
+const progressFill = document.getElementById('progressFill');
+const progressText = document.getElementById('progressText');
+const progressStats = document.getElementById('progressStats');
+const summaryCards = document.getElementById('summaryCards');
+const resultsBody = document.getElementById('resultsBody');
+const downloadBtn = document.getElementById('downloadBtn');
+const newAlignmentBtn = document.getElementById('newAlignmentBtn');
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Upload area click
+    uploadArea.addEventListener('click', () => fileInput.click());
+    
+    // File input change
+    fileInput.addEventListener('change', handleFileSelect);
+    
+    // Drag and drop
+    uploadArea.addEventListener('dragover', handleDragOver);
+    uploadArea.addEventListener('dragleave', handleDragLeave);
+    uploadArea.addEventListener('drop', handleFileDrop);
+    
+    // Alignment button
+    alignBtn.addEventListener('click', startAlignment);
+    
+    // Download button
+    downloadBtn.addEventListener('click', downloadSRT);
+    
+    // New alignment button
+    newAlignmentBtn.addEventListener('click', resetApp);
+    
+    // Smooth scrolling for navigation
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+            const targetSection = document.querySelector(targetId);
+            if (targetSection) {
+                targetSection.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    });
+});
+
+// File handling functions
+function handleFileSelect(event) {
+    const files = Array.from(event.target.files);
+    processFiles(files);
 }
 
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
-    padding: 20px;
+function handleDragOver(event) {
+    event.preventDefault();
+    uploadArea.classList.add('drag-over');
 }
 
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-    overflow: hidden;
+function handleDragLeave(event) {
+    event.preventDefault();
+    uploadArea.classList.remove('drag-over');
 }
 
-header {
-    background: linear-gradient(135deg, #2c3e50, #34495e);
-    color: white;
-    padding: 30px;
-    text-align: center;
+function handleFileDrop(event) {
+    event.preventDefault();
+    uploadArea.classList.remove('drag-over');
+    const files = Array.from(event.dataTransfer.files);
+    processFiles(files);
 }
 
-header h1 {
-    font-size: 2.5em;
-    margin-bottom: 10px;
-}
-
-header p {
-    font-size: 1.2em;
-    opacity: 0.9;
-}
-
-.upload-section {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 30px;
-    padding: 30px;
-    background: #f8f9fa;
-}
-
-.file-upload {
-    background: white;
-    padding: 25px;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-}
-
-.file-upload h3 {
-    margin-bottom: 15px;
-    color: #2c3e50;
-}
-
-textarea {
-    width: 100%;
-    height: 200px;
-    padding: 15px;
-    border: 2px dashed #bdc3c7;
-    border-radius: 8px;
-    font-family: 'Courier New', monospace;
-    font-size: 14px;
-    resize: vertical;
-    transition: border-color 0.3s;
-}
-
-textarea:focus {
-    outline: none;
-    border-color: #3498db;
-}
-
-small {
-    color: #7f8c8d;
-    font-size: 0.9em;
-}
-
-.actions {
-    padding: 20px 30px;
-    background: white;
-    border-top: 1px solid #ecf0f1;
-    display: flex;
-    gap: 15px;
-    justify-content: center;
-}
-
-button {
-    padding: 12px 25px;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-#align-btn {
-    background: linear-gradient(135deg, #27ae60, #2ecc71);
-    color: white;
-}
-
-#align-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
-}
-
-#download-btn {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
-    color: white;
-    opacity: 0.6;
-}
-
-#download-btn:enabled {
-    opacity: 1;
-}
-
-#download-btn:enabled:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
-}
-
-button:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-.loading {
-    text-align: center;
-    padding: 40px;
-    background: white;
-}
-
-.spinner {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
-    animation: spin 2s linear infinite;
-    margin: 0 auto 20px;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.results {
-    padding: 30px;
-    background: white;
-}
-
-.summary {
-    background: #ecf0f1;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 15px;
-}
-
-.summary-item {
-    text-align: center;
-    padding: 15px;
-    border-radius: 6px;
-    color: white;
-    font-weight: bold;
-}
-
-.summary-total { background: #3498db; }
-.summary-aligned { background: #27ae60; }
-.summary-review { background: #f39c12; }
-.summary-misaligned { background: #e74c3c; }
-
-.results-table-container {
-    overflow-x: auto;
-    border: 1px solid #bdc3c7;
-    border-radius: 8px;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-th, td {
-    padding: 12px 15px;
-    text-align: left;
-    border-bottom: 1px solid #ecf0f1;
-}
-
-th {
-    background: #34495e;
-    color: white;
-    font-weight: 600;
-}
-
-tr:hover {
-    background: #f8f9fa;
-}
-
-.status-aligned { color: #27ae60; font-weight: bold; }
-.status-review { color: #f39c12; font-weight: bold; }
-.status-misaligned { color: #e74c3c; font-weight: bold; }
-
-.confidence-high { color: #27ae60; }
-.confidence-medium { color: #f39c12; }
-.confidence-low { color: #e74c3c; }
-
-.error {
-    background: #e74c3c;
-    color: white;
-    padding: 20px;
-    margin: 20px 30px;
-    border-radius: 8px;
-    text-align: center;
-}
-
-.hidden {
-    display: none;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-    .upload-section {
-        grid-template-columns: 1fr;
+async function processFiles(files) {
+    // Filter for SRT files
+    const srtFiles = files.filter(file => file.name.toLowerCase().endsWith('.srt'));
+    
+    if (srtFiles.length === 0) {
+        showNotification('Please upload SRT files only', 'error');
+        return;
     }
     
-    .summary {
-        grid-template-columns: 1fr 1fr;
+    if (srtFiles.length > 2) {
+        showNotification('Please upload maximum 2 SRT files', 'warning');
+        return;
     }
     
-    .actions {
-        flex-direction: column;
+    // Clear previous files
+    uploadedFiles = [];
+    filePreview.innerHTML = '';
+    
+    // Process each file
+    for (const file of srtFiles) {
+        try {
+            const content = await readFileContent(file);
+            const language = await detectLanguage(content);
+            
+            uploadedFiles.push({
+                file: file,
+                content: content,
+                language: language.detected,
+                confidence: language.confidence,
+                name: file.name
+            });
+            
+            displayFilePreview(file, language.detected, language.confidence);
+        } catch (error) {
+            console.error('Error processing file:', error);
+            showNotification(`Error processing ${file.name}`, 'error');
+        }
     }
     
-    table {
-        font-size: 14px;
-    }
-    
-    th, td {
-        padding: 8px 10px;
+    // Enable align button if we have both languages
+    updateAlignButtonState();
+}
+
+function readFileContent(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsText(file);
+    });
+}
+
+async function detectLanguage(content) {
+    try {
+        const response = await fetch(`${API_BASE}/api/detect-language`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ content: content.substring(0, 1000) }) // Sample first 1000 chars
+        });
+        
+        if (!response.ok) {
+            throw new Error('Language detection failed');
+        }
+        
+        const data = await response.json();
+        return {
+            detected: data.language,
+            confidence: data.confidence
+        };
+    } catch (error) {
+        console.error('Language detection error:', error);
+        // Fallback detection
+        const chineseChars = content.match(/[\u4e00-\u9fff]/g);
+        const chineseRatio = chineseChars ? chineseChars.length / content.length : 0;
+        
+        if (chineseRatio > 0.3) {
+            return { detected: 'chinese', confidence: Math.round(chineseRatio * 100) };
+        } else {
+            return { detected: 'english', confidence: 80 };
+        }
     }
 }
+
+function displayFilePreview(file, language, confidence) {
+    const fileItem = document.createElement('div');
+    fileItem.className = 'file-item fade-in';
+    fileItem.innerHTML = `
+        <div class="file-info">
+            <i class="fas fa-file-alt file-icon"></i>
+            <div class="file-details">
+                <h4>${file.name}</h4>
+                <p>${(file.size / 1024).toFixed(1)} KB</p>
+            </div>
+        </div>
+        <div class="file-language">
+            ${language.toUpperCase()} (${confidence}%)
+        </div>
+    `;
+    filePreview.appendChild(fileItem);
+}
+
+function updateAlignButtonState() {
+    const hasEnglish = uploadedFiles.some(f => f.language === 'english');
+    const hasChinese = uploadedFiles.some(f => f.language === 'chinese');
+    
+    alignBtn.disabled = !(hasEnglish && hasChinese);
+    
+    if (alignBtn.disabled) {
+        alignBtn.innerHTML = '<i class="fas fa-magic"></i> Align Subtitles';
+    } else {
+        alignBtn.innerHTML = '<i class="fas fa-magic"></i> Align Subtitles';
+    }
+}
+
+// Alignment functions
+async function startAlignment() {
+    if (uploadedFiles.length !== 2) {
+        showNotification('Please upload both English and Chinese SRT files', 'warning');
+        return;
+    }
+    
+    const englishFile = uploadedFiles.find(f => f.language === 'english');
+    const chineseFile = uploadedFiles.find(f => f.language === 'chinese');
+    
+    if (!englishFile || !chineseFile) {
+        showNotification('Could not find both English and Chinese files', 'error');
+        return;
+    }
+    
+    // Show progress section
+    progressSection.style.display = 'block';
+    resultsSection.style.display = 'none';
+    progressSection.scrollIntoView({ behavior: 'smooth' });
+    
+    try {
+        updateProgress(10, 'Starting alignment process...');
+        
+        const response = await fetch(`${API_BASE}/api/align`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                english_srt: englishFile.content,
+                chinese_srt: chineseFile.content
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Alignment failed');
+        }
+        
+        updateProgress(80, 'Processing results...');
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alignmentResults = data;
+            updateProgress(100, 'Alignment complete!');
+            setTimeout(() => showResults(data), 1000);
+        } else {
+            throw new Error(data.error || 'Alignment failed');
+        }
+        
+    } catch (error) {
+        console.error('Alignment error:', error);
+        showNotification(`Alignment failed: ${error.message}`, 'error');
+        resetProgress();
+    }
+}
+
+function updateProgress(percent, text) {
+    progressFill.style.width = `${percent}%`;
+    progressText.textContent = text;
+    
+    if (alignmentResults) {
+        const stats = alignmentResults.summary;
+        progressStats.innerHTML = `
+            <div class="stat-item">
+                <div class="stat-value">${stats.total_english}</div>
+                <div class="stat-label">English Lines</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.total_chinese}</div>
+                <div class="stat-label">Chinese Lines</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.alignment_rate}%</div>
+                <div class="stat-label">Alignment Rate</div>
+            </div>
+        `;
+    }
+}
+
+function showResults(data) {
+    progressSection.style.display = 'none';
+    resultsSection.style.display = 'block';
+    resultsSection.scrollIntoView({ behavior: 'smooth' });
+    
+    // Update summary cards
+    updateSummaryCards(data.summary);
+    
+    // Update results table
+    updateResultsTable(data.results);
+}
+
+function updateSummaryCards(summary) {
+    summaryCards.innerHTML = `
+        <div class="summary-card total">
+            <div class="summary-value">${summary.total_english}</div>
+            <div class="summary-label">Total English Lines</div>
+        </div>
+        <div class="summary-card total">
+            <div class="summary-value">${summary.total_chinese}</div>
+            <div class="summary-label">Total Chinese Lines</div>
+        </div>
+        <div class="summary-card good">
+            <div class="summary-value">${summary.aligned}</div>
+            <div class="summary-label">Aligned</div>
+        </div>
+        <div class="summary-card warning">
+            <div class="summary-value">${summary.needs_review}</div>
+            <div class="summary-label">Needs Review</div>
+        </div>
+        <div class="summary-card danger">
+            <div class="summary-value">${summary.misaligned}</div>
+            <div class="summary-label">Misaligned</div>
+        </div>
+    `;
+}
+
+function updateResultsTable(results) {
+    resultsBody.innerHTML = '';
+    
+    results.forEach((result, index) => {
+        const row = document.createElement('tr');
+        row.className = 'fade-in';
+        
+        const confidencePercent = Math.round(result.confidence * 100);
+        const statusClass = `status-${result.status.toLowerCase()}`;
+        
+        row.innerHTML = `
+            <td>${result.sequence}</td>
+            <td>${result.eng_time}</td>
+            <td title="${result.english}">${truncateText(result.english, 50)}</td>
+            <td title="${result.chinese}">${truncateText(result.chinese, 50)}</td>
+            <td>
+                ${confidencePercent}%
+                <div class="confidence-bar">
+                    <div class="confidence-fill" style="width: ${confidencePercent}%"></div>
+                </div>
+            </td>
+            <td>
+                <span class="status-badge ${statusClass}">
+                    ${result.status}
+                </span>
+            </td>
+        `;
+        
+        resultsBody.appendChild(row);
+    });
+}
+
+function truncateText(text, maxLength) {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+}
+
+// Download functions
+async function downloadSRT() {
+    if (!alignmentResults) {
+        showNotification('No alignment results to download', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/generate-srt`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                aligned_pairs: alignmentResults.results
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('SRT generation failed');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Create and download file
+            const blob = new Blob([data.srt_content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'aligned_subtitles.srt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showNotification('SRT file downloaded successfully!', 'success');
+        } else {
+            throw new Error(data.error || 'Download failed');
+        }
+        
+    } catch (error) {
+        console.error('Download error:', error);
+        showNotification(`Download failed: ${error.message}`, 'error');
+    }
+}
+
+// Utility functions
+function resetApp() {
+    uploadedFiles = [];
+    alignmentResults = null;
+    filePreview.innerHTML = '';
+    fileInput.value = '';
+    alignBtn.disabled = true;
+    progressSection.style.display = 'none';
+    resultsSection.style.display = 'none';
+    
+    // Scroll back to top
+    document.querySelector('.hero').scrollIntoView({ behavior: 'smooth' });
+}
+
+function resetProgress() {
+    progressFill.style.width = '0%';
+    progressText.textContent = 'Initializing...';
+    progressStats.innerHTML = '';
+}
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type} fade-in`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        background: ${type === 'error' ? '#dc3545' : type === 'warning' ? '#ffc107' : type === 'success' ? '#28a745' : '#17a2b8'};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        z-index: 10000;
+        max-width: 400px;
+        font-weight: 500;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
+// Add some interactive effects
+document.addEventListener('DOMContentLoaded', function() {
+    // Add scroll animations
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, observerOptions);
+    
+    // Observe all project cards and other elements
+    document.querySelectorAll('.project-card, .summary-card, .stat-item').forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(20px)';
+        el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(el);
+    });
+});
