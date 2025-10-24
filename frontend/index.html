@@ -3,66 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Subtitle Aligner</title>
+    <title>Smart Subtitle AI Aligner | Daniel's Project</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🎬 AI Subtitle Aligner</h1>
-            <p>Automatically align English and Chinese subtitles with AI</p>
-        </header>
-
-        <div class="upload-section">
-            <div class="file-upload">
-                <h3>📝 English Subtitles</h3>
-                <textarea id="english-srt" placeholder="Paste English SRT content here...&#10;Example:&#10;1&#10;00:00:01,000 --> 00:00:03,000&#10;Hello there"></textarea>
-                <small>Or paste your SRT content directly</small>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-closed-captioning"></i>
+                <span>Smart Subtitle AI</span>
             </div>
-
-            <div class="file-upload">
-                <h3>📝 Chinese Subtitles</h3>
-                <textarea id="chinese-srt" placeholder="Paste Chinese SRT content here...&#10;Example:&#10;1&#10;00:00:01,500 --> 00:00:03,500&#10;你好"></textarea>
-                <small>Or paste your SRT content directly</small>
+            <div class="nav-links">
+                <a href="#aligner" class="nav-link active">Subtitle Aligner</a>
+                <a href="#projects" class="nav-link">Daniel's Projects</a>
+                <a href="#about" class="nav-link">About</a>
             </div>
         </div>
+    </nav>
 
-        <div class="actions">
-            <button id="align-btn" onclick="alignSubtitles()">🔄 Align Subtitles</button>
-            <button id="download-btn" onclick="downloadSRT()" disabled>💾 Download SRT</button>
-        </div>
-
-        <div id="loading" class="loading hidden">
-            <div class="spinner"></div>
-            <p>AI is aligning your subtitles...</p>
-        </div>
-
-        <div id="results" class="results hidden">
-            <h3>📊 Alignment Results</h3>
-            <div id="summary" class="summary"></div>
-            <div class="results-table-container">
-                <table id="results-table">
-                    <thead>
-                        <tr>
-                            <th>Seq</th>
-                            <th>ENG Time</th>
-                            <th>CHI Time</th>
-                            <th>English</th>
-                            <th>Chinese</th>
-                            <th>Confidence</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="results-body"></tbody>
-                </table>
+    <!-- Main Content -->
+    <main>
+        <!-- Hero Section -->
+        <section id="aligner" class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <h1 class="hero-title">
+                        <i class="fas fa-robot"></i>
+                        Smart Subtitle AI Aligner
+                    </h1>
+                    <p class="hero-subtitle">
+                        Align English & Chinese subtitles with AI precision. 
+                        Perfect synchronization for your videos.
+                    </p>
+                    
+                    <!-- Upload Section -->
+                    <div class="upload-section">
+                        <div class="upload-card">
+                            <div class="upload-header">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <h3>Upload Your SRT Files</h3>
+                                <p>We'll automatically detect English and Chinese</p>
+                            </div>
+                            
+                            <div class="upload-area" id="uploadArea">
+                                <i class="fas fa-file-alt upload-icon"></i>
+                                <p class="upload-text">Drag & drop your SRT files here</p>
+                                <p class="upload-subtext">or click to browse</p>
+                                <input type="file" id="fileInput" multiple accept=".srt" style="display: none;">
+                            </div>
+                            
+                            <div class="file-preview" id="filePreview">
+                                <!-- Files will be displayed here -->
+                            </div>
+                            
+                            <button class="align-btn" id="alignBtn" disabled>
+                                <i class="fas fa-magic"></i>
+                                Align Subtitles
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <div id="error" class="error hidden">
-            <h3>❌ Error</h3>
-            <p id="error-message"></p>
+        <!-- Progress Section -->
+        <section class="progress-section" id="progressSection" style="display: none;">
+            <div class="container">
+                <div class="progress-card">
+                    <h3><i class="fas fa-sync-alt"></i> Aligning Subtitles</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p class="progress-text" id="progressText">Initializing...</p>
+                    <div class="progress-stats" id="progressStats"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section" id="resultsSection" style="display: none;">
+            <div class="container">
+                <div class="results-header">
+                    <h2><i class="fas fa-check-circle"></i> Alignment Complete!</h2>
+                    <div class="summary-cards" id="summaryCards">
+                        <!-- Summary will be populated here -->
+                    </div>
+                </div>
+                
+                <div class="results-actions">
+                    <button class="btn-primary" id="downloadBtn">
+                        <i class="fas fa-download"></i> Download SRT
+                    </button>
+                    <button class="btn-secondary" id="newAlignmentBtn">
+                        <i class="fas fa-redo"></i> New Alignment
+                    </button>
+                </div>
+                
+                <div class="results-table-container">
+                    <table class="results-table" id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Time</th>
+                                <th>English</th>
+                                <th>Chinese</th>
+                                <th>Confidence</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody">
+                            <!-- Results will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Projects Section -->
+        <section id="projects" class="projects-section">
+            <div class="container">
+                <h2 class="section-title">
+                    <i class="fas fa-rocket"></i>
+                    Daniel's AI Projects
+                </h2>
+                
+                <div class="projects-grid">
+                    <div class="project-card featured">
+                        <div class="project-icon">
+                            <i class="fas fa-closed-captioning"></i>
+                        </div>
+                        <h3>Smart Subtitle Aligner</h3>
+                        <p>AI-powered subtitle synchronization for English and Chinese content. 
+                           Uses semantic matching and timing analysis.</p>
+                        <div class="project-tech">
+                            <span class="tech-tag">Python</span>
+                            <span class="tech-tag">AI/ML</span>
+                            <span class="tech-tag">Flask</span>
+                            <span class="tech-tag">Transformers</span>
+                        </div>
+                    </div>
+                    
+                    <div class="project-card">
+                        <div class="project-icon">
+                            <i class="fas fa-language"></i>
+                        </div>
+                        <h3>Multilingual Translator</h3>
+                        <p>Advanced translation system supporting multiple languages with context awareness.</p>
+                        <div class="project-tech">
+                            <span class="tech-tag">NLP</span>
+                            <span class="tech-tag">Python</span>
+                            <span class="tech-tag">Deep Learning</span>
+                        </div>
+                    </div>
+                    
+                    <div class="project-card">
+                        <div class="project-icon">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <h3>Video Processing Suite</h3>
+                        <p>Automated video editing and processing tools with AI-enhanced features.</p>
+                        <div class="project-tech">
+                            <span class="tech-tag">OpenCV</span>
+                            <span class="tech-tag">Python</span>
+                            <span class="tech-tag">FFmpeg</span>
+                        </div>
+                    </div>
+                    
+                    <div class="project-card">
+                        <div class="project-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3>Data Analysis Platform</h3>
+                        <p>Interactive data visualization and analysis tools for complex datasets.</p>
+                        <div class="project-tech">
+                            <span class="tech-tag">Data Science</span>
+                            <span class="tech-tag">Python</span>
+                            <span class="tech-tag">React</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about" class="about-section">
+            <div class="container">
+                <h2 class="section-title">
+                    <i class="fas fa-user"></i>
+                    About This Project
+                </h2>
+                <div class="about-content">
+                    <div class="about-text">
+                        <p>This Smart Subtitle AI Aligner uses advanced natural language processing to automatically synchronize English and Chinese subtitles.</p>
+                        
+                        <h4><i class="fas fa-brain"></i> How It Works:</h4>
+                        <ul>
+                            <li><strong>Semantic Analysis</strong>: AI understands meaning across languages</li>
+                            <li><strong>Timing Optimization</strong>: Matches subtitles with flexible time windows</li>
+                            <li><strong>Multi-line Handling</strong>: Intelligently groups split subtitle lines</li>
+                            <li><strong>Confidence Scoring</strong>: Provides accuracy metrics for each match</li>
+                        </ul>
+                        
+                        <h4><i class="fas fa-cogs"></i> Technology Stack:</h4>
+                        <div class="tech-stack">
+                            <span class="stack-item">Python Flask</span>
+                            <span class="stack-item">Transformers</span>
+                            <span class="stack-item">Sentence-BERT</span>
+                            <span class="stack-item">JavaScript</span>
+                            <span class="stack-item">HTML/CSS</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 Smart Subtitle AI Aligner. Built with ❤️ by Daniel.</p>
         </div>
-    </div>
+    </footer>
 
     <script src="script.js"></script>
 </body>
