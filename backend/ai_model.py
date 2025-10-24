@@ -7,15 +7,10 @@ import gc
 
 class SmartSubtitleAI:
     def __init__(self):
-        # Use transformers directly with a tiny model
-        print("Loading ultra-lightweight AI model...")
-        model_name = "sentence-transformers/all-MiniLM-L6-v2"
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name)
-        print("Tiny model loaded successfully!")
-        
-        # Memory optimization
-        torch.set_grad_enabled(False)
+        # Use lazy loading to save memory
+        self.model = None
+        self.tokenizer = None
+        self.is_loaded = False
         
         # Enhanced keyword matching for English-Chinese
         self.critical_phrases = {
@@ -40,8 +35,43 @@ class SmartSubtitleAI:
             'small': ['小', '小小', '小型', '微小', '小小的'],
             'good': ['好', '很好', '不错', '优秀', '好的'],
             'bad': ['坏', '不好', '糟糕', '差劲', '坏的'],
+            'love': ['爱', '爱情', '恋爱', '爱着', '爱上'],
+            'family': ['家庭', '家人', '家', '家人'],
+            'friend': ['朋友', '好友', '友人', '好朋友'],
+            'school': ['学校', '上学', '校园', '学生'],
+            'time': ['时间', '时候', '时光', '时刻'],
+            'dream': ['梦想', '梦', '幻想', '做梦'],
+            'home': ['家', '家里', '家庭', '家园'],
+            'work': ['工作', '上班', '做事', '干活'],
+            'water': ['水', '喝水', '水面', '水流'],
+            'food': ['食物', '吃的', '食品', '饭菜'],
+            'money': ['钱', '金钱', '货币', '钱财'],
+            'day': ['天', '日子', '白天', '一天'],
+            'night': ['晚上', '夜晚', '夜里', '黑夜'],
+            'mother': ['妈妈', '母亲', '妈', '娘'],
+            'father': ['爸爸', '父亲', '爸', '爹'],
+            'child': ['孩子', '儿童', '小孩', '小朋友'],
+            'man': ['男人', '男子', '男士', '汉子'],
+            'woman': ['女人', '女子', '女士', '妇女'],
+            'happy': ['开心', '快乐', '高兴', '幸福'],
+            'sad': ['伤心', '悲伤', '难过', '悲哀'],
+            'beautiful': ['美丽', '漂亮', '美', '好看'],
+            'ugly': ['丑', '丑陋', '难看', '丑恶'],
         }
         self.learned_pairs = []
+
+    def lazy_load_model(self):
+        """Lazy load the model to save memory"""
+        if not self.is_loaded:
+            print("Loading ultra-lightweight AI model...")
+            model_name = "sentence-transformers/paraphrase-multilingual-MiniLM-L6-v2"
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+            self.model = AutoModel.from_pretrained(model_name)
+            
+            # Memory optimization
+            torch.set_grad_enabled(False)
+            self.is_loaded = True
+            print("Tiny model loaded successfully!")
 
     def mean_pooling(self, model_output, attention_mask):
         """Mean pooling to get sentence embeddings"""
@@ -50,8 +80,12 @@ class SmartSubtitleAI:
         return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
     def get_embeddings(self, texts):
-        """Get embeddings for texts"""
-        encoded_input = self.tokenizer(texts, padding=True, truncation=True, return_tensors='pt')
+        """Get embeddings for texts with memory optimization"""
+        self.lazy_load_model()
+        
+        # Use smaller max_length to save memory
+        encoded_input = self.tokenizer(texts, padding=True, truncation=True, 
+                                     return_tensors='pt', max_length=128)
         
         with torch.no_grad():
             model_output = self.model(**encoded_input)
@@ -95,7 +129,9 @@ class SmartSubtitleAI:
             
             if norm_a > 0 and norm_b > 0:
                 similarity = dot_product / (norm_a * norm_b)
-                return max(keyword_score, similarity)
+                # Combine with keyword score for better accuracy
+                combined_score = max(keyword_score, similarity)
+                return min(1.0, combined_score)
             
             return keyword_score
             
@@ -132,13 +168,13 @@ class SmartSubtitleAI:
         return min(1.0, final_score)
 
     def align_subtitles(self, english_subs, chinese_subs):
-        """Memory-safe alignment"""
+        """Memory-safe alignment for large files"""
         print(f"Aligning {len(english_subs)} English and {len(chinese_subs)} Chinese subtitles")
         
         aligned_pairs = []
         
-        # Process in very small batches
-        batch_size = 5
+        # Process in very small batches for memory safety
+        batch_size = 10
         for i in range(0, len(english_subs), batch_size):
             batch_end = min(i + batch_size, len(english_subs))
             
@@ -148,8 +184,8 @@ class SmartSubtitleAI:
                 best_score = 0
                 
                 # Search in reasonable window
-                search_start = max(0, eng_idx - 10)
-                search_end = min(len(chinese_subs), eng_idx + 10)
+                search_start = max(0, eng_idx - 15)
+                search_end = min(len(chinese_subs), eng_idx + 15)
                 
                 for chi_idx in range(search_start, search_end):
                     chi_sub = chinese_subs[chi_idx]
@@ -209,3 +245,15 @@ class SmartSubtitleAI:
                 'english': english_text,
                 'chinese': chinese_text
             })
+
+    def clear_memory(self):
+        """Clear model from memory when not needed"""
+        if self.is_loaded:
+            del self.model
+            del self.tokenizer
+            self.model = None
+            self.tokenizer = None
+            self.is_loaded = False
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            gc.collect()
+            print("AI model cleared from memory")
